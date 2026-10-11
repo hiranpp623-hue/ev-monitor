@@ -1,4 +1,7 @@
 backend/
+backend
+requirements.txt
+backend/requirements.txt
 *.py
 *.keras
 *.npy
