@@ -1,0 +1,6 @@
+backend/
+*.py
+*.keras
+*.npy
+*.csv
+*.png
