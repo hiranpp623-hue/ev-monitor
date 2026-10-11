@@ -136,7 +136,11 @@
   <!-- Top Bar -->
   <div class="topbar">
     <div class="brand"><span id="brand-icon">⚡</span> BATTERY AI COPILOT</div>
-    <div class="controls">
+    <div class="controls" style="display:flex; align-items:center; gap:12px;">
+      <div style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:6px 12px; border-radius:8px; border:1px solid var(--border);">
+        <span style="font-size:11px; color:var(--muted); font-family:'Space Mono';">SERVER:</span>
+        <input type="text" id="backendUrlInput" placeholder="https://ev-battery-ai.loca.lt" style="background:transparent; border:none; color:#fff; font-family:'Space Mono'; font-size:12px; width:220px; outline:none;">
+      </div>
       <input type="hidden" id="scenario" value="random">
       <button id="startBtn">START ENGINE (Live Journey)</button>
     </div>
@@ -265,6 +269,7 @@ const chart = new Chart(ctx, {
 // MAIN APPLICATION LOGIC
 // ==========================================
 let eventSource = null;
+let activeStreamController = null;
 let isEmergency = false;
 
 function renderTick(t, reading, risk) {
@@ -337,7 +342,11 @@ function startEngine() {
 
   // Handle STOP action
   if (btn.textContent === 'TURN OFF ENGINE') {
-    if(eventSource) eventSource.close();
+    if (activeStreamController) {
+      activeStreamController.abort();
+      activeStreamController = null;
+    }
+    if (eventSource) eventSource.close();
     stopSiren();
     btn.textContent = 'START ENGINE';
     document.getElementById('conn-status').textContent = 'Standby';
@@ -358,30 +367,86 @@ function startEngine() {
   // Ensure Audio Context is created on user click
   if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-  // Connect to Backend (Uses your laptop's IP dynamically so mobile works, fallbacks to localhost for direct file opens)
-  let backendIP = window.location.hostname;
-  if (!backendIP) {
-    backendIP = "localhost"; 
+  // Connect to Backend (Uses configured Tunnel or Localhost URL)
+  let baseUrl = document.getElementById('backendUrlInput').value.trim();
+  if (!baseUrl) {
+    baseUrl = window.location.protocol === 'https:' ? 'https://ev-battery-ai.loca.lt' : 'http://localhost:5000';
   }
-  const scenario = document.getElementById('scenario').value;
-  eventSource = new EventSource(`http://${backendIP}:5000/api/stream?scenario=${scenario}`);
-  
-  btn.textContent = 'TURN OFF ENGINE';
-  document.getElementById('conn-status').textContent = 'Streaming Live...';
-  document.getElementById('conn-status').style.color = 'var(--safe)';
+  baseUrl = baseUrl.replace(/\/+$/, '');
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    baseUrl = (window.location.protocol === 'https:' ? 'https://' : 'http://') + baseUrl;
+  }
+  localStorage.setItem('ev_backend_url', baseUrl);
 
-  eventSource.onmessage = (e) => {
-    const payload = JSON.parse(e.data);
-    renderTick(payload.t, payload.reading, payload.risk);
-  };
-  
-  eventSource.onerror = () => {
-    document.getElementById('conn-status').textContent = 'Connection Lost (Is backend running?)';
+  const scenario = document.getElementById('scenario').value;
+  const streamEndpoint = `${baseUrl}/api/stream?scenario=${scenario}`;
+
+  btn.textContent = 'TURN OFF ENGINE';
+  document.getElementById('conn-status').textContent = 'Connecting...';
+  document.getElementById('conn-status').style.color = 'var(--warn)';
+
+  // Modern Fetch Streaming with localtunnel bypass header
+  try {
+    activeStreamController = new AbortController();
+    const response = await fetch(streamEndpoint, {
+      signal: activeStreamController.signal,
+      headers: {
+        'bypass-tunnel-reminder': 'true',
+        'Accept': 'text/event-stream'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    document.getElementById('conn-status').textContent = 'Streaming Live...';
+    document.getElementById('conn-status').style.color = 'var(--safe)';
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data:')) {
+          try {
+            const payload = JSON.parse(trimmed.slice(5).trim());
+            renderTick(payload.t, payload.reading, payload.risk);
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    console.error('Connection error:', err);
+    document.getElementById('conn-status').textContent = 'Connection Lost (Check tunnel/backend)';
     document.getElementById('conn-status').style.color = 'var(--danger)';
-    if(eventSource) eventSource.close();
     btn.textContent = 'START ENGINE';
-  };
+  }
 }
+
+// Server URL Input Initialization
+const defaultTunnel = 'https://ev-battery-ai.loca.lt';
+const savedUrl = localStorage.getItem('ev_backend_url');
+const urlInput = document.getElementById('backendUrlInput');
+if (savedUrl) {
+  urlInput.value = savedUrl;
+} else if (window.location.protocol === 'https:') {
+  urlInput.value = defaultTunnel;
+} else {
+  urlInput.value = 'http://localhost:5000';
+}
+urlInput.addEventListener('change', () => {
+  localStorage.setItem('ev_backend_url', urlInput.value.trim());
+});
 
 document.getElementById('startBtn').addEventListener('click', startEngine);
 
