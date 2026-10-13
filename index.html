@@ -139,7 +139,7 @@
     <div class="controls" style="display:flex; align-items:center; gap:12px;">
       <div style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:6px 12px; border-radius:8px; border:1px solid var(--border);">
         <span style="font-size:11px; color:var(--muted); font-family:'Space Mono';">SERVER:</span>
-        <input type="text" id="backendUrlInput" placeholder="https://ev-battery-ai.loca.lt" style="background:transparent; border:none; color:#fff; font-family:'Space Mono'; font-size:12px; width:220px; outline:none;">
+        <input type="text" id="backendUrlInput" placeholder="Paste tunnel URL (e.g. https://xyz.loca.lt)" style="background:transparent; border:none; color:#fff; font-family:'Space Mono'; font-size:12px; width:260px; outline:none;">
       </div>
       <input type="hidden" id="scenario" value="random">
       <button id="startBtn">START ENGINE (Live Journey)</button>
@@ -271,6 +271,9 @@ const chart = new Chart(ctx, {
 let eventSource = null;
 let activeStreamController = null;
 let isEmergency = false;
+let engineRunning = false;  // tracks user intent: did they click Start?
+let reconnectTimer = null;
+let reconnectAttempts = 0;
 
 function renderTick(t, reading, risk) {
   // 1. Update Sensor Cards
@@ -332,75 +335,58 @@ function renderTick(t, reading, risk) {
   }
 }
 
-async function startEngine() {
-  const btn = document.getElementById('startBtn');
-  
-  // Request Notification Permission for Web App Push Alerts
-  if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
-    Notification.requestPermission();
-  }
-
-  // Handle STOP action
-  if (btn.textContent === 'TURN OFF ENGINE') {
-    if (activeStreamController) {
-      activeStreamController.abort();
-      activeStreamController = null;
-    }
-    if (eventSource) eventSource.close();
-    stopSiren();
-    btn.textContent = 'START ENGINE';
-    document.getElementById('conn-status').textContent = 'Standby';
-    document.getElementById('conn-status').style.color = 'var(--safe)';
-    return;
-  }
-  
-  // Handle START action
-  // Reset all UI states
-  isEmergency = false;
-  document.getElementById('emergency-overlay').classList.remove('active');
-  document.getElementById('sms-toast').classList.remove('active');
-  chart.data.labels = []; 
-  chart.data.datasets.forEach(d => d.data = []); 
-  chart.update();
+function stopEngine() {
+  engineRunning = false;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (activeStreamController) { activeStreamController.abort(); activeStreamController = null; }
+  if (eventSource) { eventSource.close(); eventSource = null; }
   stopSiren();
-  
-  // Ensure Audio Context is created on user click
-  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  reconnectAttempts = 0;
+  const btn = document.getElementById('startBtn');
+  btn.textContent = 'START ENGINE (Live Journey)';
+  btn.style.background = 'var(--text)';
+  document.getElementById('conn-status').textContent = 'Standby';
+  document.getElementById('conn-status').style.color = 'var(--safe)';
+}
 
-  // Connect to Backend (Uses configured Tunnel or Localhost URL)
+async function connectStream() {
+  if (!engineRunning) return; // user stopped manually
+
   let baseUrl = document.getElementById('backendUrlInput').value.trim();
   if (!baseUrl) {
-    baseUrl = window.location.protocol === 'https:' ? 'https://ev-battery-ai.loca.lt' : 'http://localhost:5000';
+    baseUrl = window.location.protocol === 'https:' ? '' : 'http://localhost:5000';
   }
   baseUrl = baseUrl.replace(/\/+$/, '');
-  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+  if (baseUrl && !baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
     baseUrl = (window.location.protocol === 'https:' ? 'https://' : 'http://') + baseUrl;
+  }
+  if (!baseUrl) {
+    document.getElementById('conn-status').textContent = '⚠ Paste tunnel URL above first!';
+    document.getElementById('conn-status').style.color = 'var(--danger)';
+    return;
   }
   localStorage.setItem('ev_backend_url', baseUrl);
 
-  const scenario = document.getElementById('scenario').value;
+  const scenario = document.getElementById('scenario').value || 'random';
   const streamEndpoint = `${baseUrl}/api/stream?scenario=${scenario}`;
 
-  btn.textContent = 'TURN OFF ENGINE';
-  document.getElementById('conn-status').textContent = 'Connecting...';
+  document.getElementById('conn-status').textContent = reconnectAttempts > 0
+    ? `Reconnecting... (attempt ${reconnectAttempts})`
+    : 'Connecting...';
   document.getElementById('conn-status').style.color = 'var(--warn)';
 
-  // Modern Fetch Streaming with localtunnel bypass header
   try {
     activeStreamController = new AbortController();
     const response = await fetch(streamEndpoint, {
       signal: activeStreamController.signal,
-      headers: {
-        'bypass-tunnel-reminder': 'true',
-        'Accept': 'text/event-stream'
-      }
+      headers: { 'bypass-tunnel-reminder': 'true', 'Accept': 'text/event-stream' }
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    document.getElementById('conn-status').textContent = 'Streaming Live...';
+    // Connected successfully
+    reconnectAttempts = 0;
+    document.getElementById('conn-status').textContent = '● Streaming Live';
     document.getElementById('conn-status').style.color = 'var(--safe)';
 
     const reader = response.body.getReader();
@@ -413,7 +399,6 @@ async function startEngine() {
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
-
       for (const line of lines) {
         const trimmed = line.trim();
         if (trimmed.startsWith('data:')) {
@@ -424,26 +409,70 @@ async function startEngine() {
         }
       }
     }
+
+    // Stream ended cleanly — auto-restart a new session
+    if (engineRunning) {
+      reconnectAttempts++;
+      document.getElementById('conn-status').textContent = 'Stream ended. Reconnecting in 3s...';
+      document.getElementById('conn-status').style.color = 'var(--warn)';
+      reconnectTimer = setTimeout(connectStream, 3000);
+    }
+
   } catch (err) {
-    if (err.name === 'AbortError') return;
+    if (err.name === 'AbortError') return; // intentional stop
     console.error('Connection error:', err);
-    document.getElementById('conn-status').textContent = 'Connection Lost (Check tunnel/backend)';
+    if (!engineRunning) return;
+    reconnectAttempts++;
+    document.getElementById('conn-status').textContent = `Connection lost. Retry ${reconnectAttempts} in 5s...`;
     document.getElementById('conn-status').style.color = 'var(--danger)';
-    btn.textContent = 'START ENGINE';
+    reconnectTimer = setTimeout(connectStream, 5000);
   }
 }
 
+async function startEngine() {
+  const btn = document.getElementById('startBtn');
+
+  // Request Notification Permission
+  if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+    Notification.requestPermission();
+  }
+
+  // Handle STOP
+  if (engineRunning) {
+    stopEngine();
+    return;
+  }
+
+  // Handle START — reset UI
+  engineRunning = true;
+  reconnectAttempts = 0;
+  isEmergency = false;
+  document.getElementById('emergency-overlay').classList.remove('active');
+  document.getElementById('sms-toast').classList.remove('active');
+  chart.data.labels = [];
+  chart.data.datasets.forEach(d => d.data = []);
+  chart.update();
+  stopSiren();
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  btn.textContent = 'TURN OFF ENGINE';
+  btn.style.background = 'var(--danger)';
+
+  connectStream();
+}
+
 // Server URL Input Initialization
-const defaultTunnel = 'https://ev-battery-ai.loca.lt';
 const savedUrl = localStorage.getItem('ev_backend_url');
 const urlInput = document.getElementById('backendUrlInput');
 if (savedUrl) {
   urlInput.value = savedUrl;
-} else if (window.location.protocol === 'https:') {
-  urlInput.value = defaultTunnel;
-} else {
+} else if (window.location.protocol !== 'https:') {
   urlInput.value = 'http://localhost:5000';
 }
+// If on HTTPS (Vercel), leave blank — user must paste their live tunnel URL
+urlInput.addEventListener('input', () => {
+  localStorage.setItem('ev_backend_url', urlInput.value.trim());
+});
 urlInput.addEventListener('change', () => {
   localStorage.setItem('ev_backend_url', urlInput.value.trim());
 });
