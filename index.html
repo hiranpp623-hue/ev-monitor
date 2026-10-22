@@ -333,10 +333,10 @@
         <div
           style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:6px 12px; border-radius:8px; border:1px solid var(--border);">
           <span style="font-size:11px; color:var(--muted); font-family:'Space Mono';">SERVER:</span>
-          <input type="text" id="backendUrlInput" placeholder="http://localhost:5000"
-            style="background:transparent; border:none; color:#fff; font-family:'Space Mono'; font-size:12px; width:180px; outline:none;">
-          <button id="resetLocalBtn" type="button" title="Switch to http://localhost:5000"
-            style="background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; font-size:10px; font-family:'Space Mono'; padding:2px 8px; border-radius:4px; cursor:pointer;">local:5000</button>
+          <input type="text" id="backendUrlInput" placeholder="https://ev-monitor-backend.onrender.com"
+            style="background:transparent; border:none; color:#fff; font-family:'Space Mono'; font-size:12px; width:260px; outline:none;">
+          <button id="resetLocalBtn" type="button" title="Switch to https://ev-monitor-backend.onrender.com"
+            style="background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; font-size:10px; font-family:'Space Mono'; padding:2px 8px; border-radius:4px; cursor:pointer;">Render API</button>
         </div>
         <select id="scenario" style="background:#18181b; color:#fff; border:1px solid var(--border); padding:8px 12px; border-radius:6px; font-family:'Space Mono'; font-size:12px;">
           <option value="live">📡 Live Virtual / IoT Hardware</option>
@@ -607,10 +607,13 @@
       // Ensure Audio Context is created on user click
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-      // Connect to Backend (Uses configured Tunnel or Localhost URL)
+      // Connect to Backend (Uses configured Render API or Localhost URL)
+      const defaultBackend = 'https://ev-monitor-backend.onrender.com';
       let baseUrl = document.getElementById('backendUrlInput').value.trim();
       if (!baseUrl) {
-        baseUrl = window.location.protocol === 'https:' ? 'https://ev-battery-ai.loca.lt' : 'http://localhost:5000';
+        baseUrl = (window.location.protocol === 'https:' || (!window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1'))) 
+          ? defaultBackend 
+          : 'http://localhost:5000';
       }
       baseUrl = baseUrl.replace(/\/+$/, '');
       if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
@@ -683,10 +686,10 @@
         if (err.name === 'AbortError') return;
         console.error('Connection error:', err);
         const attempted = baseUrl;
-        document.getElementById('conn-status').innerHTML = `Connection Lost to ${attempted} — <span id="quickFixLocal" style="color:#38bdf8; text-decoration:underline; cursor:pointer; font-weight:bold;">Switch to localhost:5000</span>`;
+        document.getElementById('conn-status').innerHTML = `Connection Lost to ${attempted} — <span id="quickFixLocal" style="color:#38bdf8; text-decoration:underline; cursor:pointer; font-weight:bold;">Switch to Render API</span>`;
         document.getElementById('quickFixLocal')?.addEventListener('click', () => {
-          urlInput.value = 'http://localhost:5000';
-          localStorage.setItem('ev_backend_url', 'http://localhost:5000');
+          urlInput.value = defaultBackend;
+          localStorage.setItem('ev_backend_url', defaultBackend);
           startEngine();
         });
         document.getElementById('conn-status').style.color = 'var(--danger)';
@@ -695,10 +698,10 @@
     }
 
     // Server URL Input Initialization
-    const defaultTunnel = 'https://ev-battery-ai.loca.lt';
+    const defaultBackendUrl = 'https://ev-monitor-backend.onrender.com';
     let savedUrl = localStorage.getItem('ev_backend_url');
-    // Clear stale dead localtunnel from localStorage if stored previously
-    if (savedUrl && savedUrl.includes('ev-battery-ai.loca.lt')) {
+    // Clear stale dead localtunnel or local LAN IP from localStorage
+    if (savedUrl && (savedUrl.includes('ev-battery-ai.loca.lt') || savedUrl.includes('192.168.'))) {
       savedUrl = null;
       localStorage.removeItem('ev_backend_url');
     }
@@ -706,8 +709,8 @@
     const urlInput = document.getElementById('backendUrlInput');
     if (savedUrl) {
       urlInput.value = savedUrl;
-    } else if (window.location.protocol === 'https:' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
-      urlInput.value = defaultTunnel;
+    } else if (window.location.protocol === 'https:' || (!window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1'))) {
+      urlInput.value = defaultBackendUrl;
     } else {
       urlInput.value = 'http://localhost:5000';
     }
@@ -716,9 +719,9 @@
     });
 
     document.getElementById('resetLocalBtn')?.addEventListener('click', () => {
-      urlInput.value = 'http://localhost:5000';
-      localStorage.setItem('ev_backend_url', 'http://localhost:5000');
-      document.getElementById('conn-status').textContent = 'Ready (Set to http://localhost:5000)';
+      urlInput.value = defaultBackendUrl;
+      localStorage.setItem('ev_backend_url', defaultBackendUrl);
+      document.getElementById('conn-status').textContent = 'Ready (Set to Render API)';
       document.getElementById('conn-status').style.color = '#38bdf8';
     });
 

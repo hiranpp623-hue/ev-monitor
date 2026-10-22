@@ -5,7 +5,9 @@ safely or heading toward a delayed reignition ("stranded energy"),
 using an LSTM neural network over post-incident sensor readings.
 
 ## 🌐 Live Web Demos & Reference Links
-- **Live AI Copilot Dashboard**: [https://hiranpp623-hue.github.io/ev-monitor/](https://hiranpp623-hue.github.io/ev-monitor/)
+- **Vercel Production Dashboard**: [https://ev-monitor-flame.vercel.app](https://ev-monitor-flame.vercel.app)
+- **Render Public Backend API**: [https://ev-monitor-backend.onrender.com](https://ev-monitor-backend.onrender.com)
+- **Live GitHub Pages Dashboard**: [https://hiranpp623-hue.github.io/ev-monitor/](https://hiranpp623-hue.github.io/ev-monitor/)
 - **Interactive Breadboard Circuit Twin**: [https://hiranpp623-hue.github.io/ev-monitor/circuit_visualizer.html](https://hiranpp623-hue.github.io/ev-monitor/circuit_visualizer.html)
 - **GitHub Repository**: [https://github.com/hiranpp623-hue/ev-monitor](https://github.com/hiranpp623-hue/ev-monitor)
 

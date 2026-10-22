@@ -972,7 +972,7 @@
 <span class="c-comment">// ====================================================================</span>
 <span class="c-preproc">#define</span> <span class="c-func">WIFI_SSID</span>           <span class="c-str">"EV_LAB_WIFI"</span>
 <span class="c-preproc">#define</span> <span class="c-func">WIFI_PASS</span>           <span class="c-str">"SecureBMS2026!"</span>
-<span class="c-preproc">#define</span> <span class="c-func">BACKEND_API_URL</span>     <span class="c-str">"http://192.168.1.100:5000/api/telemetry"</span>
+<span class="c-preproc">#define</span> <span class="c-func">BACKEND_API_URL</span>     <span class="c-str">"https://ev-monitor-backend.onrender.com/api/telemetry"</span>
 <span class="c-preproc">#define</span> <span class="c-func">TELEMETRY_INTERVAL</span>  <span class="c-num">500</span>    <span class="c-comment">// Ingestion packet period in milliseconds</span>
 </code></pre>
         </div>
@@ -2007,9 +2007,10 @@
         shock_g: state.shock_g
       };
 
+      const defaultBackendUrl = 'https://ev-monitor-backend.onrender.com';
       const baseUrl = (localStorage.getItem('ev_backend_url') && !localStorage.getItem('ev_backend_url').includes('ev-battery-ai.loca.lt')) 
         ? localStorage.getItem('ev_backend_url') 
-        : (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000');
+        : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:5000' : defaultBackendUrl);
 
       try {
         const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/telemetry`, {
@@ -2040,7 +2041,7 @@
       updateTelemetryHUD();
     }
 
-    function setBackendOnline(isOnline, url = 'http://localhost:5000') {
+    function setBackendOnline(isOnline, url = 'https://ev-monitor-backend.onrender.com') {
       state.backendOnline = isOnline;
       const pill = document.getElementById('backend-status-pill');
       const text = document.getElementById('backend-status-text');
@@ -2058,8 +2059,8 @@
     }
 
     document.getElementById('backend-status-pill')?.addEventListener('click', () => {
-      const current = localStorage.getItem('ev_backend_url') || 'http://localhost:5000';
-      const newUrl = prompt("Enter Backend Server API URL (e.g. http://localhost:5000):", current);
+      const current = localStorage.getItem('ev_backend_url') || 'https://ev-monitor-backend.onrender.com';
+      const newUrl = prompt("Enter Backend Server API URL (e.g. https://ev-monitor-backend.onrender.com):", current);
       if (newUrl !== null && newUrl.trim() !== "") {
         localStorage.setItem('ev_backend_url', newUrl.trim());
         showToast(`Backend URL set to: ${newUrl.trim()}`);

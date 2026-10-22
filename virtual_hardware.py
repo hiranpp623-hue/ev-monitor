@@ -299,8 +299,8 @@ def main():
                         help="Specific sequence_id to stream (default: sequential)")
     parser.add_argument("--interval", type=float, default=0.5,
                         help="Time between readings in seconds (default: 0.5)")
-    parser.add_argument("--url", default="http://127.0.0.1:5000",
-                        help="Backend URL (default: http://127.0.0.1:5000)")
+    parser.add_argument("--url", default="https://ev-monitor-backend.onrender.com",
+                        help="Backend URL (default: https://ev-monitor-backend.onrender.com or http://127.0.0.1:5000)")
     parser.add_argument("--device-id", default="BMS-VIRTUAL-01",
                         help="Virtual hardware device identifier")
     parser.add_argument("--no-loop", dest="loop", action="store_false",
