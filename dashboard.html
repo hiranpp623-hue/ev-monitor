@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>EV Battery AI Monitor</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#22c55e">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -20,8 +23,10 @@
       --glow-safe: rgba(34, 197, 94, 0.2);
       --glow-warn: rgba(234, 179, 8, 0.2);
     }
+
     body {
-      margin: 0; padding: 0;
+      margin: 0;
+      padding: 0;
       background: var(--bg);
       color: var(--text);
       font-family: 'Inter', sans-serif;
@@ -31,470 +36,711 @@
       align-items: center;
       overflow: hidden;
     }
+
     .dashboard {
-      width: 100%; max-width: 1200px; height: 100%; max-height: 800px;
-      padding: 24px; display: grid; grid-template-rows: auto 1fr auto; gap: 24px;
+      width: 100%;
+      max-width: 1200px;
+      height: 100%;
+      max-height: 800px;
+      padding: 24px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 24px;
       position: relative;
     }
+
     /* Top Bar */
     .topbar {
-      display: flex; justify-content: space-between; align-items: center;
-      padding-bottom: 16px; border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
     }
-    .brand { font-size: 24px; font-weight: 800; letter-spacing: -0.05em; display:flex; align-items:center; gap:8px;}
-    .brand span { color: var(--safe); transition: color 0.3s;}
-    .controls select, .controls button {
-      background: #18181b; color: white; border: 1px solid var(--border);
-      padding: 10px 16px; border-radius: 6px; font-family: 'Space Mono'; cursor: pointer;
+
+    .brand {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand span {
+      color: var(--safe);
+      transition: color 0.3s;
+    }
+
+    .controls select,
+    .controls button {
+      background: #18181b;
+      color: white;
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-family: 'Space Mono';
+      cursor: pointer;
       font-size: 14px;
     }
-    .controls button { background: var(--text); color: var(--bg); font-weight: 700; margin-left: 8px;}
-    .controls button:hover { background: #d4d4d8; }
-    
+
+    .controls button {
+      background: var(--text);
+      color: var(--bg);
+      font-weight: 700;
+      margin-left: 8px;
+    }
+
+    .controls button:hover {
+      background: #d4d4d8;
+    }
+
     /* Main Content */
-    .main-grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; height: 100%; min-height:0; }
-    
+    .main-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+      height: 100%;
+      min-height: 0;
+    }
+
     .panel {
-      background: var(--panel); border: 1px solid var(--border);
-      border-radius: 16px; padding: 24px; backdrop-filter: blur(10px);
-      display: flex; flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
     }
-    .panel h2 { margin: 0 0 16px 0; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
-    
+
+    .panel h2 {
+      margin: 0 0 16px 0;
+      font-size: 14px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
     /* Status Panel */
-    .status-panel { align-items: center; justify-content: center; text-align: center; position:relative; transition: border-color 0.3s;}
+    .status-panel {
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      position: relative;
+      transition: border-color 0.3s;
+    }
+
     .status-badge {
-      display: inline-block; padding: 8px 16px; border-radius: 20px;
-      font-weight: 800; letter-spacing: 0.1em; font-size: 12px;
-      background: rgba(34, 197, 94, 0.1); color: var(--safe); border: 1px solid var(--safe);
-      box-shadow: 0 0 20px var(--glow-safe); transition: all 0.3s;
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      font-size: 12px;
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--safe);
+      border: 1px solid var(--safe);
+      box-shadow: 0 0 20px var(--glow-safe);
+      transition: all 0.3s;
     }
-    .risk-score { font-family: 'Space Mono'; font-size: 72px; font-weight: 700; margin: 32px 0 8px 0; line-height: 1; text-shadow: 0 0 20px rgba(255,255,255,0.1);}
-    .risk-label { color: var(--muted); font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase;}
-    
+
+    .risk-score {
+      font-family: 'Space Mono';
+      font-size: 72px;
+      font-weight: 700;
+      margin: 32px 0 8px 0;
+      line-height: 1;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+    }
+
+    .risk-label {
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
     /* Sensor Grid */
-    .sensors { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;}
-    .sensor-card {
-      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
-      border-radius: 12px; padding: 16px;
+    .sensors {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
     }
-    .sensor-card .label { font-size: 12px; color: var(--muted); font-weight:600;}
-    .sensor-card .value { font-family: 'Space Mono'; font-size: 28px; font-weight: 700; margin-top: 8px; }
-    .sensor-card .unit { font-size: 14px; color: var(--muted); font-weight:normal;}
+
+    .sensor-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .sensor-card .label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .sensor-card .value {
+      font-family: 'Space Mono';
+      font-size: 28px;
+      font-weight: 700;
+      margin-top: 8px;
+    }
+
+    .sensor-card .unit {
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: normal;
+    }
 
     /* Chart */
-    .chart-container { flex-grow: 1; position: relative; min-height: 0; }
-    
+    .chart-container {
+      flex-grow: 1;
+      position: relative;
+      min-height: 0;
+    }
+
     /* Red Emergency Overlay */
     #emergency-overlay {
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 16px;
-      background: rgba(239, 68, 68, 0.95); z-index: 100;
-      display: flex; flex-direction: column; justify-content: center; align-items: center;
-      text-align: center; opacity: 0; pointer-events: none; transition: opacity 0.3s;
-      box-shadow: inset 0 0 100px rgba(0,0,0,0.5);
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 16px;
+      background: rgba(239, 68, 68, 0.95);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.5);
     }
-    #emergency-overlay.active { opacity: 1; pointer-events: auto; animation: flash 0.8s infinite alternate; }
-    @keyframes flash { from { background: rgba(239, 68, 68, 0.95); } to { background: rgba(185, 28, 28, 0.95); } }
-    #emergency-overlay h1 { font-size: 64px; font-weight: 800; margin: 0; text-shadow: 0 4px 20px rgba(0,0,0,0.5); letter-spacing: -0.02em; }
-    #emergency-overlay h2 { font-size: 32px; font-weight: 600; margin: 16px 0; color: #fff; }
-    #emergency-overlay p { font-size: 24px; max-width: 600px; line-height: 1.5; font-weight:600; color: #fee2e2;}
-    
-    /* SMS Notification */
-    #sms-toast {
-      position: absolute; top: 24px; right: -400px; width: 340px;
-      background: #ffffff; color: #000; border-radius: 16px; padding: 16px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5); z-index: 101;
-      display: flex; gap: 16px; align-items: center; transition: right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+    #emergency-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+      animation: flash 0.8s infinite alternate;
     }
-    #sms-toast.active { right: 24px; }
-    #sms-toast .icon { font-size: 36px; }
-    #sms-toast .title { font-weight: 800; font-size: 15px; margin-bottom: 4px; text-transform: uppercase;}
-    #sms-toast .msg { font-size: 14px; color: #3f3f46; font-weight: 600; line-height: 1.4;}
-    
-  </style>
-</head>
-<body>
 
-<div class="dashboard">
-  <!-- SMS Notification -->
-  <div id="sms-toast">
-    <div class="icon">📱</div>
-    <div>
-      <div class="title">System Alert Triggered</div>
-      <div class="msg">Push Notification sent to Device: "URGENT Thermal Event."</div>
-    </div>
-  </div>
+    @keyframes flash {
+      from {
+        background: rgba(239, 68, 68, 0.95);
+      }
 
-  <!-- Emergency Overlay -->
-  <div id="emergency-overlay">
-    <h1>CRITICAL INTERNAL FAULT</h1>
-    <h2>THERMAL RUNAWAY DETECTED</h2>
-    <p>PULL OVER AND EVACUATE VEHICLE IMMEDIATELY.<br><br>MOVE 50 FEET AWAY.</p>
-    <button id="dismissAlarmBtn" style="margin-top: 32px; background: #fff; color: #ef4444; border: none; padding: 16px 32px; font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.1s;">MUTE & DISMISS ALARM</button>
-  </div>
-
-  <!-- Top Bar -->
-  <div class="topbar">
-    <div class="brand"><span id="brand-icon">⚡</span> BATTERY AI COPILOT</div>
-    <div class="controls" style="display:flex; align-items:center; gap:12px;">
-      <div style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:6px 12px; border-radius:8px; border:1px solid var(--border);">
-        <span style="font-size:11px; color:var(--muted); font-family:'Space Mono';">SERVER:</span>
-        <input type="text" id="backendUrlInput" placeholder="Paste tunnel URL (e.g. https://xyz.loca.lt)" style="background:transparent; border:none; color:#fff; font-family:'Space Mono'; font-size:12px; width:260px; outline:none;">
-      </div>
-      <input type="hidden" id="scenario" value="random">
-      <button id="startBtn">START ENGINE (Live Journey)</button>
-    </div>
-  </div>
-
-  <!-- Main Grid -->
-  <div class="main-grid">
-    
-    <!-- Left Column (Status) -->
-    <div class="panel status-panel" id="status-box">
-      <h2>System Status</h2>
-      <div class="status-badge" id="status-badge">OPTIMAL</div>
-      
-      <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
-        <div class="risk-score" id="risk-score">0%</div>
-        <div class="risk-label">AI RISK SCORE</div>
-      </div>
-      
-      <div style="margin-top:24px; font-size:12px; color:var(--muted); text-align:left; line-height:1.6; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; width: 100%;">
-        <span style="color:var(--text); font-weight:600;">System Info:</span><br>
-        > Model: LSTM / Keras<br>
-        > Window: 60 timesteps<br>
-        > Connection: <span id="conn-status" style="color:var(--safe); font-weight:600;">Standby</span>
-      </div>
-    </div>
-
-    <!-- Right Column (Sensors + Chart) -->
-    <div style="display:flex; flex-direction:column; gap:24px;">
-      
-      <!-- Sensor Grid -->
-      <div class="sensors">
-        <div class="sensor-card">
-          <div class="label">TEMP PROBE 1</div>
-          <div class="value" id="val-t1">--<span class="unit">°C</span></div>
-        </div>
-        <div class="sensor-card">
-          <div class="label">TEMP PROBE 2</div>
-          <div class="value" id="val-t2">--<span class="unit">°C</span></div>
-        </div>
-        <div class="sensor-card">
-          <div class="label">PACK VOLTAGE</div>
-          <div class="value" id="val-v">--<span class="unit">V</span></div>
-        </div>
-        <div class="sensor-card">
-          <div class="label">GAS / VOC</div>
-          <div class="value" id="val-g">--<span class="unit">ppm</span></div>
-        </div>
-      </div>
-
-      <!-- Chart Panel -->
-      <div class="panel" style="flex-grow:1;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-          <h2 style="margin:0;">Live Telemetry</h2>
-          <div style="font-size:12px; color:var(--muted); font-family:'Space Mono';" id="clock">t=0</div>
-        </div>
-        <div class="chart-container">
-          <canvas id="telemetryChart"></canvas>
-        </div>
-      </div>
-      
-    </div>
-  </div>
-</div>
-
-<script>
-// ==========================================
-// AUDIO SIREN LOGIC (HTML5 Web Audio API)
-// ==========================================
-let audioCtx;
-let sirenInterval;
-
-function startSiren() {
-  if (sirenInterval) return;
-  // Initialize context on user interaction (Start Engine click)
-  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  
-  sirenInterval = setInterval(() => {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
-    gain.gain.setValueAtTime(0.05, audioCtx.currentTime); // Keep volume reasonable so it doesn't hurt ears
-    
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.2); // short beep
-  }, 400); // repeat every 400ms
-}
-
-function stopSiren() {
-  if (sirenInterval) clearInterval(sirenInterval);
-  sirenInterval = null;
-}
-
-// ==========================================
-// CHART.JS SETUP
-// ==========================================
-const ctx = document.getElementById('telemetryChart').getContext('2d');
-const chart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [
-      { label: 'Temp 1 (°C)', data: [], borderColor: '#f97316', backgroundColor: 'transparent', yAxisID: 'yTemp', tension: 0.4, pointRadius: 0, borderWidth: 2 },
-      { label: 'Voltage (V)', data: [], borderColor: '#3b82f6', backgroundColor: 'transparent', yAxisID: 'yVolt', tension: 0.4, pointRadius: 0, borderWidth: 2 },
-      { label: 'Gas (ppm)', data: [], borderColor: '#a855f7', backgroundColor: 'transparent', yAxisID: 'yGas', tension: 0.4, pointRadius: 0, borderWidth: 2, borderDash: [5,5] }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false, animation: false,
-    interaction: { mode: 'index', intersect: false },
-    plugins: { legend: { labels: { color: '#a1a1aa', font: { family: 'Inter', size: 12 } } } },
-    scales: {
-      x: { ticks: { color: '#71717a', font:{family:'Space Mono'} }, grid: { color: 'rgba(255,255,255,0.05)' } },
-      yTemp: { position: 'left', ticks: { color: '#f97316' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-      yVolt: { position: 'right', ticks: { color: '#3b82f6' }, grid: { display: false } },
-      yGas: { display: false } // Hidden axis to scale gas properly without cluttering UI
-    }
-  }
-});
-
-// ==========================================
-// MAIN APPLICATION LOGIC
-// ==========================================
-let eventSource = null;
-let activeStreamController = null;
-let isEmergency = false;
-let engineRunning = false;  // tracks user intent: did they click Start?
-let reconnectTimer = null;
-let reconnectAttempts = 0;
-
-function renderTick(t, reading, risk) {
-  // 1. Update Sensor Cards
-  document.getElementById('val-t1').innerHTML = reading.temp1.toFixed(1) + '<span class="unit">°C</span>';
-  document.getElementById('val-t2').innerHTML = reading.temp2.toFixed(1) + '<span class="unit">°C</span>';
-  document.getElementById('val-v').innerHTML = reading.voltage.toFixed(2) + '<span class="unit">V</span>';
-  document.getElementById('val-g').innerHTML = reading.gas.toFixed(0) + '<span class="unit">ppm</span>';
-  document.getElementById('clock').textContent = `t=${t}`;
-  
-  // 2. Update Chart
-  chart.data.labels.push(t);
-  chart.data.datasets[0].data.push(reading.temp1);
-  chart.data.datasets[1].data.push(reading.voltage);
-  chart.data.datasets[2].data.push(reading.gas);
-  chart.update();
-
-  // 3. Update Risk UI
-  const riskPercent = Math.round(risk * 100);
-  document.getElementById('risk-score').textContent = riskPercent + '%';
-  
-  const badge = document.getElementById('status-badge');
-  const box = document.getElementById('status-box');
-  const brand = document.getElementById('brand-icon');
-
-  if (isEmergency) return; // If already alarmed, lock the state until reset
-
-  // State Logic
-  if (risk < 0.50) {
-    badge.textContent = 'OPTIMAL';
-    badge.style.color = 'var(--safe)';
-    badge.style.borderColor = 'var(--safe)';
-    badge.style.background = 'rgba(34, 197, 94, 0.1)';
-    badge.style.boxShadow = '0 0 20px var(--glow-safe)';
-    box.style.borderColor = 'var(--border)';
-    brand.style.color = 'var(--safe)';
-  } else if (risk < 0.75) {
-    badge.textContent = 'CAUTION';
-    badge.style.color = 'var(--warn)';
-    badge.style.borderColor = 'var(--warn)';
-    badge.style.background = 'rgba(234, 179, 8, 0.1)';
-    badge.style.boxShadow = '0 0 20px var(--glow-warn)';
-    box.style.borderColor = 'var(--warn)';
-    brand.style.color = 'var(--warn)';
-  } else {
-    // CRITICAL EMERGENCY TRIGGERED
-    isEmergency = true;
-    document.getElementById('emergency-overlay').classList.add('active');
-    document.getElementById('sms-toast').classList.add('active');
-    
-    // Trigger Native Browser Notification
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("🚨 URGENT: EV Battery Fault", {
-        body: "Thermal Runaway Detected! Evacuate vehicle immediately.",
-        vibrate: [200, 100, 200, 100, 200]
-      });
-    }
-    
-    startSiren();
-  }
-}
-
-function stopEngine() {
-  engineRunning = false;
-  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-  if (activeStreamController) { activeStreamController.abort(); activeStreamController = null; }
-  if (eventSource) { eventSource.close(); eventSource = null; }
-  stopSiren();
-  reconnectAttempts = 0;
-  const btn = document.getElementById('startBtn');
-  btn.textContent = 'START ENGINE (Live Journey)';
-  btn.style.background = 'var(--text)';
-  document.getElementById('conn-status').textContent = 'Standby';
-  document.getElementById('conn-status').style.color = 'var(--safe)';
-}
-
-async function connectStream() {
-  if (!engineRunning) return; // user stopped manually
-
-  let baseUrl = document.getElementById('backendUrlInput').value.trim();
-  if (!baseUrl) {
-    baseUrl = window.location.protocol === 'https:' ? '' : 'http://localhost:5000';
-  }
-  baseUrl = baseUrl.replace(/\/+$/, '');
-  if (baseUrl && !baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-    baseUrl = (window.location.protocol === 'https:' ? 'https://' : 'http://') + baseUrl;
-  }
-  if (!baseUrl) {
-    document.getElementById('conn-status').textContent = '⚠ Paste tunnel URL above first!';
-    document.getElementById('conn-status').style.color = 'var(--danger)';
-    return;
-  }
-  localStorage.setItem('ev_backend_url', baseUrl);
-
-  const scenario = document.getElementById('scenario').value || 'random';
-  const streamEndpoint = `${baseUrl}/api/stream?scenario=${scenario}`;
-
-  document.getElementById('conn-status').textContent = reconnectAttempts > 0
-    ? `Reconnecting... (attempt ${reconnectAttempts})`
-    : 'Connecting...';
-  document.getElementById('conn-status').style.color = 'var(--warn)';
-
-  try {
-    activeStreamController = new AbortController();
-    const response = await fetch(streamEndpoint, {
-      signal: activeStreamController.signal,
-      headers: { 'bypass-tunnel-reminder': 'true', 'Accept': 'text/event-stream' }
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    // Connected successfully
-    reconnectAttempts = 0;
-    document.getElementById('conn-status').textContent = '● Streaming Live';
-    document.getElementById('conn-status').style.color = 'var(--safe)';
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('data:')) {
-          try {
-            const payload = JSON.parse(trimmed.slice(5).trim());
-            renderTick(payload.t, payload.reading, payload.risk);
-          } catch (e) {}
-        }
+      to {
+        background: rgba(185, 28, 28, 0.95);
       }
     }
 
-    // Stream ended cleanly — auto-restart a new session
-    if (engineRunning) {
-      reconnectAttempts++;
-      document.getElementById('conn-status').textContent = 'Stream ended. Reconnecting in 3s...';
-      document.getElementById('conn-status').style.color = 'var(--warn)';
-      reconnectTimer = setTimeout(connectStream, 3000);
+    #emergency-overlay h1 {
+      font-size: 64px;
+      font-weight: 800;
+      margin: 0;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      letter-spacing: -0.02em;
     }
 
-  } catch (err) {
-    if (err.name === 'AbortError') return; // intentional stop
-    console.error('Connection error:', err);
-    if (!engineRunning) return;
-    reconnectAttempts++;
-    document.getElementById('conn-status').textContent = `Connection lost. Retry ${reconnectAttempts} in 5s...`;
-    document.getElementById('conn-status').style.color = 'var(--danger)';
-    reconnectTimer = setTimeout(connectStream, 5000);
-  }
-}
+    #emergency-overlay h2 {
+      font-size: 32px;
+      font-weight: 600;
+      margin: 16px 0;
+      color: #fff;
+    }
 
-async function startEngine() {
-  const btn = document.getElementById('startBtn');
+    #emergency-overlay p {
+      font-size: 24px;
+      max-width: 600px;
+      line-height: 1.5;
+      font-weight: 600;
+      color: #fee2e2;
+    }
 
-  // Request Notification Permission
-  if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-    Notification.requestPermission();
-  }
+    /* SMS Notification */
+    #sms-toast {
+      position: absolute;
+      top: 24px;
+      right: -400px;
+      width: 340px;
+      background: #ffffff;
+      color: #000;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      z-index: 101;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      transition: right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
 
-  // Handle STOP
-  if (engineRunning) {
-    stopEngine();
-    return;
-  }
+    #sms-toast.active {
+      right: 24px;
+    }
 
-  // Handle START — reset UI
-  engineRunning = true;
-  reconnectAttempts = 0;
-  isEmergency = false;
-  document.getElementById('emergency-overlay').classList.remove('active');
-  document.getElementById('sms-toast').classList.remove('active');
-  chart.data.labels = [];
-  chart.data.datasets.forEach(d => d.data = []);
-  chart.update();
-  stopSiren();
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    #sms-toast .icon {
+      font-size: 36px;
+    }
 
-  btn.textContent = 'TURN OFF ENGINE';
-  btn.style.background = 'var(--danger)';
+    #sms-toast .title {
+      font-weight: 800;
+      font-size: 15px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
 
-  connectStream();
-}
+    #sms-toast .msg {
+      font-size: 14px;
+      color: #3f3f46;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+  </style>
+</head>
 
-// Server URL Input Initialization
-const savedUrl = localStorage.getItem('ev_backend_url');
-const urlInput = document.getElementById('backendUrlInput');
-if (savedUrl) {
-  urlInput.value = savedUrl;
-} else if (window.location.protocol !== 'https:') {
-  urlInput.value = 'http://localhost:5000';
-}
-// If on HTTPS (Vercel), leave blank — user must paste their live tunnel URL
-urlInput.addEventListener('input', () => {
-  localStorage.setItem('ev_backend_url', urlInput.value.trim());
-});
-urlInput.addEventListener('change', () => {
-  localStorage.setItem('ev_backend_url', urlInput.value.trim());
-});
+<body>
 
-document.getElementById('startBtn').addEventListener('click', startEngine);
+  <div class="dashboard">
+    <!-- SMS Notification -->
+    <div id="sms-toast">
+      <div class="icon">📱</div>
+      <div>
+        <div class="title">System Alert Triggered</div>
+        <div class="msg">Push Notification sent to Device: "URGENT Thermal Event."</div>
+      </div>
+    </div>
 
-document.getElementById('dismissAlarmBtn').addEventListener('click', () => {
-  stopSiren();
-  document.getElementById('emergency-overlay').classList.remove('active');
-  document.getElementById('sms-toast').classList.remove('active');
-  // Note: isEmergency stays true so it doesn't re-trigger immediately.
-  // The user must click "TURN OFF ENGINE" to fully reset the system.
-});
+    <!-- Emergency Overlay -->
+    <div id="emergency-overlay">
+      <h1>CRITICAL INTERNAL FAULT</h1>
+      <h2>THERMAL RUNAWAY DETECTED</h2>
+      <p>PULL OVER AND EVACUATE VEHICLE IMMEDIATELY.<br><br>MOVE 50 FEET AWAY.</p>
+      <button id="dismissAlarmBtn"
+        style="margin-top: 32px; background: #fff; color: #ef4444; border: none; padding: 16px 32px; font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.1s;">MUTE
+        & DISMISS ALARM</button>
+    </div>
 
-// Register Service Worker for PWA Installation
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').then(reg => {
-      console.log('Service Worker registered for PWA installation');
+    <!-- Top Bar -->
+    <div class="topbar">
+      <div class="brand"><span id="brand-icon">⚡</span> BATTERY AI COPILOT</div>
+      <div class="controls" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div
+          style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:6px 12px; border-radius:8px; border:1px solid var(--border);">
+          <span style="font-size:11px; color:var(--muted); font-family:'Space Mono';">SERVER:</span>
+          <input type="text" id="backendUrlInput" placeholder="http://localhost:5000"
+            style="background:transparent; border:none; color:#fff; font-family:'Space Mono'; font-size:12px; width:180px; outline:none;">
+          <button id="resetLocalBtn" type="button" title="Switch to http://localhost:5000"
+            style="background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; font-size:10px; font-family:'Space Mono'; padding:2px 8px; border-radius:4px; cursor:pointer;">local:5000</button>
+        </div>
+        <select id="scenario" style="background:#18181b; color:#fff; border:1px solid var(--border); padding:8px 12px; border-radius:6px; font-family:'Space Mono'; font-size:12px;">
+          <option value="live">📡 Live Virtual / IoT Hardware</option>
+          <option value="random">🎲 Preset: Random Sequence</option>
+          <option value="safe">✅ Preset: Safe Cooldown</option>
+          <option value="risk">🚨 Preset: Thermal Runaway</option>
+        </select>
+        <button id="startBtn">START ENGINE (Live Journey)</button>
+        <a href="circuit_visualizer.html" style="text-decoration:none; background:#38bdf8; color:#090d16; font-weight:700; padding:10px 16px; border-radius:6px; font-family:'Space Mono'; font-size:14px; display:inline-flex; align-items:center; gap:6px; transition:transform 0.1s;" onmouseover="this.style.background='#7dd3fc'" onmouseout="this.style.background='#38bdf8'">🔌 Circuit Twin</a>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+
+      <!-- Left Column (Status) -->
+      <div class="panel status-panel" id="status-box">
+        <h2>System Status</h2>
+        <div class="status-badge" id="status-badge">OPTIMAL</div>
+
+        <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+          <div class="risk-score" id="risk-score">0%</div>
+          <div class="risk-label">AI RISK SCORE</div>
+        </div>
+
+        <div
+          style="margin-top:24px; font-size:12px; color:var(--muted); text-align:left; line-height:1.6; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; width: 100%;">
+          <span style="color:var(--text); font-weight:600;">System Info:</span><br>
+          > Model: LSTM / Keras<br>
+          > Window: 60 timesteps<br>
+          > Device: <span id="device-info" style="color:#38bdf8; font-family:'Space Mono'; font-weight:600;">Standby</span><br>
+          > Contactor Relay: <span id="relay-info" style="color:var(--safe); font-family:'Space Mono'; font-weight:600;">CLOSED (NORMAL)</span><br>
+          > Impact Shock: <span id="shock-info" style="color:var(--safe); font-family:'Space Mono'; font-weight:600;">0.1G (NOMINAL)</span><br>
+          > Source: <span id="source-info" style="color:var(--safe); font-family:'Space Mono'; font-weight:600;">Hardware / Live</span><br>
+          > Connection: <span id="conn-status" style="color:var(--safe); font-weight:600;">Standby</span>
+        </div>
+      </div>
+
+      <!-- Right Column (Sensors + Chart) -->
+      <div style="display:flex; flex-direction:column; gap:24px;">
+
+        <!-- Sensor Grid -->
+        <div class="sensors">
+          <div class="sensor-card">
+            <div class="label">TEMP PROBE 1</div>
+            <div class="value" id="val-t1">--<span class="unit">°C</span></div>
+          </div>
+          <div class="sensor-card">
+            <div class="label">TEMP PROBE 2</div>
+            <div class="value" id="val-t2">--<span class="unit">°C</span></div>
+          </div>
+          <div class="sensor-card">
+            <div class="label">PACK VOLTAGE</div>
+            <div class="value" id="val-v">--<span class="unit">V</span></div>
+          </div>
+          <div class="sensor-card">
+            <div class="label">GAS / VOC</div>
+            <div class="value" id="val-g">--<span class="unit">ppm</span></div>
+          </div>
+        </div>
+
+        <!-- Chart Panel -->
+        <div class="panel" style="flex-grow:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="margin:0;">Live Telemetry</h2>
+            <div style="font-size:12px; color:var(--muted); font-family:'Space Mono';" id="clock">t=0</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // AUDIO SIREN LOGIC (HTML5 Web Audio API)
+    // ==========================================
+    let audioCtx;
+    let sirenInterval;
+
+    function startSiren() {
+      if (sirenInterval) return;
+      // Initialize context on user interaction (Start Engine click)
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      sirenInterval = setInterval(() => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime); // Keep volume reasonable so it doesn't hurt ears
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2); // short beep
+      }, 400); // repeat every 400ms
+    }
+
+    function stopSiren() {
+      if (sirenInterval) clearInterval(sirenInterval);
+      sirenInterval = null;
+    }
+
+    // ==========================================
+    // CHART.JS SETUP
+    // ==========================================
+    const ctx = document.getElementById('telemetryChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Temp 1 (°C)', data: [], borderColor: '#f97316', backgroundColor: 'transparent', yAxisID: 'yTemp', tension: 0.4, pointRadius: 0, borderWidth: 2 },
+          { label: 'Voltage (V)', data: [], borderColor: '#3b82f6', backgroundColor: 'transparent', yAxisID: 'yVolt', tension: 0.4, pointRadius: 0, borderWidth: 2 },
+          { label: 'Gas (ppm)', data: [], borderColor: '#a855f7', backgroundColor: 'transparent', yAxisID: 'yGas', tension: 0.4, pointRadius: 0, borderWidth: 2, borderDash: [5, 5] }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { labels: { color: '#a1a1aa', font: { family: 'Inter', size: 12 } } } },
+        scales: {
+          x: { ticks: { color: '#71717a', font: { family: 'Space Mono' } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          yTemp: { position: 'left', ticks: { color: '#f97316' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          yVolt: { position: 'right', ticks: { color: '#3b82f6' }, grid: { display: false } },
+          yGas: { display: false } // Hidden axis to scale gas properly without cluttering UI
+        }
+      }
     });
-  });
-}
-</script>
+
+    // ==========================================
+    // MAIN APPLICATION LOGIC
+    // ==========================================
+    let eventSource = null;
+    let activeStreamController = null;
+    let isEmergency = false;
+
+    function renderTick(t, reading, risk, meta = {}) {
+      // 1. Update Sensor Cards
+      document.getElementById('val-t1').innerHTML = reading.temp1.toFixed(1) + '<span class="unit">°C</span>';
+      document.getElementById('val-t2').innerHTML = reading.temp2.toFixed(1) + '<span class="unit">°C</span>';
+      document.getElementById('val-v').innerHTML = reading.voltage.toFixed(2) + '<span class="unit">V</span>';
+      document.getElementById('val-g').innerHTML = reading.gas.toFixed(0) + '<span class="unit">ppm</span>';
+      document.getElementById('clock').textContent = `t=${t}`;
+
+      // Update Device / Source metadata
+      if (meta.device_id) {
+        const devEl = document.getElementById('device-info');
+        if (devEl) devEl.textContent = meta.device_id;
+      }
+      if (meta.source) {
+        const srcEl = document.getElementById('source-info');
+        if (srcEl) {
+          srcEl.textContent = meta.source === 'hardware' ? 'Live IoT Node' : 'Simulated Preset';
+          srcEl.style.color = meta.source === 'hardware' ? '#38bdf8' : 'var(--safe)';
+        }
+      }
+      if (meta.relay_state) {
+        const relayEl = document.getElementById('relay-info');
+        if (relayEl) {
+          relayEl.textContent = meta.relay_state === 'CLOSED' ? 'CLOSED (NORMAL)' : 'OPEN (CUTOFF)';
+          relayEl.style.color = meta.relay_state === 'CLOSED' ? 'var(--safe)' : 'var(--danger)';
+        }
+      }
+      if (typeof meta.shock_g === 'number') {
+        const shockEl = document.getElementById('shock-info');
+        if (shockEl) {
+          shockEl.textContent = `${meta.shock_g.toFixed(1)}G ${meta.shock_g > 5.0 ? '(CRITICAL IMPACT)' : '(NOMINAL)'}`;
+          shockEl.style.color = meta.shock_g > 5.0 ? 'var(--danger)' : 'var(--safe)';
+        }
+      }
+
+      // 2. Update Chart with rolling window (keeps last 60 points)
+      chart.data.labels.push(t);
+      chart.data.datasets[0].data.push(reading.temp1);
+      chart.data.datasets[1].data.push(reading.voltage);
+      chart.data.datasets[2].data.push(reading.gas);
+
+      if (chart.data.labels.length > 60) {
+        chart.data.labels.shift();
+        chart.data.datasets.forEach(d => d.data.shift());
+      }
+      chart.update();
+
+      // 3. Update Risk UI
+      const riskPercent = Math.round(risk * 100);
+      document.getElementById('risk-score').textContent = riskPercent + '%';
+
+      const badge = document.getElementById('status-badge');
+      const box = document.getElementById('status-box');
+      const brand = document.getElementById('brand-icon');
+
+      if (isEmergency) return; // If already alarmed, lock the state until reset
+
+      // State Logic
+      if (risk < 0.50) {
+        badge.textContent = 'OPTIMAL';
+        badge.style.color = 'var(--safe)';
+        badge.style.borderColor = 'var(--safe)';
+        badge.style.background = 'rgba(34, 197, 94, 0.1)';
+        badge.style.boxShadow = '0 0 20px var(--glow-safe)';
+        box.style.borderColor = 'var(--border)';
+        brand.style.color = 'var(--safe)';
+      } else if (risk < 0.75) {
+        badge.textContent = 'CAUTION';
+        badge.style.color = 'var(--warn)';
+        badge.style.borderColor = 'var(--warn)';
+        badge.style.background = 'rgba(234, 179, 8, 0.1)';
+        badge.style.boxShadow = '0 0 20px var(--glow-warn)';
+        box.style.borderColor = 'var(--warn)';
+        brand.style.color = 'var(--warn)';
+      } else {
+        // CRITICAL EMERGENCY TRIGGERED
+        isEmergency = true;
+        document.getElementById('emergency-overlay').classList.add('active');
+        document.getElementById('sms-toast').classList.add('active');
+
+        // Trigger Native Browser Notification
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("🚨 URGENT: EV Battery Fault", {
+            body: "Thermal Runaway Detected! Evacuate vehicle immediately.",
+            vibrate: [200, 100, 200, 100, 200]
+          });
+        }
+
+        startSiren();
+      }
+    }
+
+    async function startEngine() {
+      const btn = document.getElementById('startBtn');
+
+      // Request Notification Permission for Web App Push Alerts
+      if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission();
+      }
+
+      // Handle STOP action
+      if (btn.textContent === 'TURN OFF ENGINE') {
+        if (activeStreamController) {
+          activeStreamController.abort();
+          activeStreamController = null;
+        }
+        if (eventSource) eventSource.close();
+        stopSiren();
+        btn.textContent = 'START ENGINE';
+        document.getElementById('conn-status').textContent = 'Standby';
+        document.getElementById('conn-status').style.color = 'var(--safe)';
+        return;
+      }
+
+      // Handle START action
+      // Reset all UI states
+      isEmergency = false;
+      document.getElementById('emergency-overlay').classList.remove('active');
+      document.getElementById('sms-toast').classList.remove('active');
+      chart.data.labels = [];
+      chart.data.datasets.forEach(d => d.data = []);
+      chart.update();
+      stopSiren();
+
+      // Ensure Audio Context is created on user click
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Connect to Backend (Uses configured Tunnel or Localhost URL)
+      let baseUrl = document.getElementById('backendUrlInput').value.trim();
+      if (!baseUrl) {
+        baseUrl = window.location.protocol === 'https:' ? 'https://ev-battery-ai.loca.lt' : 'http://localhost:5000';
+      }
+      baseUrl = baseUrl.replace(/\/+$/, '');
+      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        baseUrl = (window.location.protocol === 'https:' ? 'https://' : 'http://') + baseUrl;
+      }
+      localStorage.setItem('ev_backend_url', baseUrl);
+
+      const scenario = document.getElementById('scenario').value;
+      const streamEndpoint = `${baseUrl}/api/stream?scenario=${scenario}`;
+
+      btn.textContent = 'TURN OFF ENGINE';
+      document.getElementById('conn-status').textContent = 'Connecting...';
+      document.getElementById('conn-status').style.color = 'var(--warn)';
+
+      // Modern Fetch Streaming with localtunnel bypass header
+      try {
+        activeStreamController = new AbortController();
+        const response = await fetch(streamEndpoint, {
+          signal: activeStreamController.signal,
+          headers: {
+            'bypass-tunnel-reminder': 'true',
+            'Accept': 'text/event-stream'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        document.getElementById('conn-status').textContent = 'Streaming Live...';
+        document.getElementById('conn-status').style.color = 'var(--safe)';
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('data:')) {
+              try {
+                const payload = JSON.parse(trimmed.slice(5).trim());
+                if (payload.type === 'connected') {
+                  document.getElementById('conn-status').textContent = 'Listening for IoT Node (Run start_virtual_hardware.bat or Circuit Twin)...';
+                  document.getElementById('conn-status').style.color = '#38bdf8';
+                  continue;
+                }
+                if (payload.reading) {
+                  document.getElementById('conn-status').textContent = 'Streaming Live';
+                  document.getElementById('conn-status').style.color = 'var(--safe)';
+                  renderTick(payload.t, payload.reading, payload.risk, payload);
+                }
+              } catch (e) { }
+            }
+          }
+        }
+
+        if (!activeStreamController?.signal?.aborted) {
+          document.getElementById('conn-status').textContent = 'Stream Disconnected (Server Stopped)';
+          document.getElementById('conn-status').style.color = 'var(--warn)';
+          btn.textContent = 'START ENGINE (Live Journey)';
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error('Connection error:', err);
+        const attempted = baseUrl;
+        document.getElementById('conn-status').innerHTML = `Connection Lost to ${attempted} — <span id="quickFixLocal" style="color:#38bdf8; text-decoration:underline; cursor:pointer; font-weight:bold;">Switch to localhost:5000</span>`;
+        document.getElementById('quickFixLocal')?.addEventListener('click', () => {
+          urlInput.value = 'http://localhost:5000';
+          localStorage.setItem('ev_backend_url', 'http://localhost:5000');
+          startEngine();
+        });
+        document.getElementById('conn-status').style.color = 'var(--danger)';
+        btn.textContent = 'START ENGINE (Live Journey)';
+      }
+    }
+
+    // Server URL Input Initialization
+    const defaultTunnel = 'https://ev-battery-ai.loca.lt';
+    let savedUrl = localStorage.getItem('ev_backend_url');
+    // Clear stale dead localtunnel from localStorage if stored previously
+    if (savedUrl && savedUrl.includes('ev-battery-ai.loca.lt')) {
+      savedUrl = null;
+      localStorage.removeItem('ev_backend_url');
+    }
+
+    const urlInput = document.getElementById('backendUrlInput');
+    if (savedUrl) {
+      urlInput.value = savedUrl;
+    } else if (window.location.protocol === 'https:' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+      urlInput.value = defaultTunnel;
+    } else {
+      urlInput.value = 'http://localhost:5000';
+    }
+    urlInput.addEventListener('change', () => {
+      localStorage.setItem('ev_backend_url', urlInput.value.trim());
+    });
+
+    document.getElementById('resetLocalBtn')?.addEventListener('click', () => {
+      urlInput.value = 'http://localhost:5000';
+      localStorage.setItem('ev_backend_url', 'http://localhost:5000');
+      document.getElementById('conn-status').textContent = 'Ready (Set to http://localhost:5000)';
+      document.getElementById('conn-status').style.color = '#38bdf8';
+    });
+
+    document.getElementById('startBtn').addEventListener('click', startEngine);
+
+    document.getElementById('dismissAlarmBtn').addEventListener('click', () => {
+      stopSiren();
+      document.getElementById('emergency-overlay').classList.remove('active');
+      document.getElementById('sms-toast').classList.remove('active');
+      // Note: isEmergency stays true so it doesn't re-trigger immediately.
+      // The user must click "TURN OFF ENGINE" to fully reset the system.
+    });
+
+    // Register Service Worker for PWA Installation
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+          console.log('Service Worker registered for PWA installation');
+        });
+      });
+    }
+  </script>
 </body>
+
 </html>

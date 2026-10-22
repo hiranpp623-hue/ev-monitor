@@ -1,13 +1,18 @@
-# Post-Crash Battery Reignition Risk Prediction
+# Post-Crash Battery Reignition Risk Prediction & Digital Twin
 
 Predicts whether a crashed/suppressed EV battery pack is stabilizing
 safely or heading toward a delayed reignition ("stranded energy"),
-using an LSTM over post-incident sensor readings.
+using an LSTM neural network over post-incident sensor readings.
+
+## 🌐 Live Web Demos & Reference Links
+- **Live AI Copilot Dashboard**: [https://hiranpp623-hue.github.io/ev-monitor/](https://hiranpp623-hue.github.io/ev-monitor/)
+- **Interactive Breadboard Circuit Twin**: [https://hiranpp623-hue.github.io/ev-monitor/circuit_visualizer.html](https://hiranpp623-hue.github.io/ev-monitor/circuit_visualizer.html)
+- **GitHub Repository**: [https://github.com/hiranpp623-hue/ev-monitor](https://github.com/hiranpp623-hue/ev-monitor)
 
 ## Setup
 
 ```bash
-pip install tensorflow numpy scikit-learn
+pip install tensorflow numpy scikit-learn flask flask-cors
 ```
 
 ## Run order
@@ -19,13 +24,33 @@ python train.py                # trains model, prints metrics, saves reignition_
 python monitor_realtime.py     # simulates a live post-incident monitoring session
 ```
 
-## Files
-
 | File | Purpose |
 |---|---|
 | `generate_data.py` | Generates synthetic post-incident sensor sequences AND exports demo-ready `dataset.csv` + `sample_curves.png` in one run |
 | `train.py` | LSTM binary classifier, training, evaluation, early-warning metric |
 | `monitor_realtime.py` | Simulated live monitoring session with a running risk score |
+| `virtual_hardware.py` | Virtual IoT Edge Node (BMS) simulating live sensors and streaming `dataset.csv` or physics over HTTP |
+| `backend/server.py` | Real-time Flask API with `POST /api/telemetry` ingestion and SSE live fanout |
+| `dashboard.html` / `index.html` | Interactive Web Dashboard with live telemetry charts, risk badge, and emergency siren |
+| `circuit_visualizer.html` | 2D Interactive Breadboard Circuit Simulator & Hardware Twin with interactive fault injections |
+
+## Running with Virtual Hardware (Option 1)
+
+1. **Start the Backend API**:
+   ```bash
+   start_backend.bat
+   # or: cd backend && python server.py
+   ```
+2. **Start the Virtual Hardware IoT Node**:
+   ```bash
+   start_virtual_hardware.bat
+   # or: python virtual_hardware.py --mode dataset --interval 0.5
+   # or for live physics simulation: python virtual_hardware.py --mode physics --trigger-runaway
+   ```
+3. **Open the Dashboard**:
+   - Double-click `dashboard.html` in your browser.
+   - Set dropdown to **"📡 Live Virtual / IoT Hardware"**.
+   - Click **"START ENGINE"** to view real-time incoming sensor curves and AI risk alerts!
 
 ## What `generate_data.py` now produces, in one run
 

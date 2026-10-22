@@ -1,0 +1,2187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Hardware Circuit Visualizer & Digital Twin - EV Battery AI</title>
+  <meta name="description" content="Interactive 2D breadboard circuit simulator and hardware twin for EV Battery Management System, featuring ESP32, MQ-2 gas sensor, temperature probes, shock sensor, relay contactor cutoff, and live firmware tabs.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20y=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --canvas-bg: #0d111a;
+      --panel-bg: rgba(18, 24, 38, 0.85);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --panel-hover: rgba(255, 255, 255, 0.15);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      --safe: #22c55e;
+      --safe-glow: rgba(34, 197, 94, 0.3);
+      --warn: #f59e0b;
+      --warn-glow: rgba(245, 158, 11, 0.3);
+      --danger: #ef4444;
+      --danger-glow: rgba(239, 68, 68, 0.35);
+      
+      --breadboard-body: #f4efe6;
+      --breadboard-border: #dcd3c3;
+      --breadboard-gutter: #c2b7a3;
+      --breadboard-pin: #292524;
+      --breadboard-pin-shine: #57534e;
+      
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Space Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TOP APPLICATION BAR */
+    header.app-header {
+      height: 56px;
+      background: rgba(13, 17, 23, 0.95);
+      border-bottom: 1px solid var(--panel-border);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 50;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #38bdf8, #2563eb);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .brand-badge {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 2px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    /* TOP TABS NAVIGATION */
+    nav.tab-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      background: rgba(56, 189, 248, 0.2);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    /* HEADER RIGHT ACTIONS */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      padding: 5px 10px;
+      border-radius: 14px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: var(--safe);
+      transition: all 0.3s;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .hdr-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .hdr-btn:hover {
+      background: var(--panel-hover);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .hdr-btn.primary {
+      background: var(--accent);
+      color: #090d16;
+      border-color: transparent;
+      font-weight: 700;
+    }
+
+    .hdr-btn.primary:hover {
+      background: #7dd3fc;
+      box-shadow: 0 0 14px var(--accent-glow);
+    }
+
+    /* MAIN WORKSPACE */
+    main.workspace-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background-color: var(--canvas-bg);
+      background-image: 
+        radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0);
+      background-size: 24px 24px;
+    }
+
+    /* VIEW PANELS */
+    .view-panel {
+      position: absolute;
+      inset: 0;
+      display: none;
+      overflow: hidden;
+    }
+
+    .view-panel.active {
+      display: block;
+    }
+
+    /* CIRCUIT SVG CANVAS & TRANSFORM CONTAINER */
+    #circuit-viewport {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    #circuit-viewport.panning {
+      cursor: grabbing;
+    }
+
+    #circuit-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    /* CODE VIEWER PANELS */
+    .code-editor-wrap {
+      width: 100%;
+      height: 100%;
+      background: #0f141c;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .code-topbar {
+      height: 40px;
+      background: #0b0e14;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
+
+    .code-title {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .code-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .code-copy-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--panel-border);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .code-copy-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .code-scrollable {
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      color: #e2e8f0;
+      user-select: text;
+    }
+
+    pre code {
+      user-select: text;
+    }
+
+    /* SYNTAX HIGHLIGHTING CLASSES */
+    .c-comment { color: #64748b; font-style: italic; }
+    .c-keyword { color: #f472b6; font-weight: 600; }
+    .c-preproc { color: #38bdf8; font-weight: 600; }
+    .c-type { color: #67e8f9; }
+    .c-num { color: #f59e0b; }
+    .c-str { color: #86efac; }
+    .c-func { color: #fbbf24; }
+    .c-section { color: #c084fc; font-weight: bold; }
+
+    /* FLOATING TELEMETRY HUD OVERLAY */
+    .telemetry-hud {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      z-index: 20;
+      pointer-events: auto;
+    }
+
+    .hud-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .hud-label {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .hud-val {
+      font-size: 15px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .hud-val.safe { color: var(--safe); }
+    .hud-val.warn { color: var(--warn); }
+    .hud-val.danger { color: var(--danger); }
+
+    .hud-separator {
+      width: 1px;
+      height: 28px;
+      background: var(--panel-border);
+    }
+
+    /* BOTTOM CONTROLS DOCK */
+    .bottom-dock {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      border-radius: 30px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 30;
+    }
+
+    .dock-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .dock-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .dock-btn.active {
+      background: rgba(56, 189, 248, 0.2);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+
+    .dock-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--panel-border);
+      margin: 0 4px;
+    }
+
+    .zoom-level-text {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      min-width: 44px;
+      text-align: center;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    /* COLLAPSIBLE FAULT INJECTION TRAY */
+    .fault-tray {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      width: 280px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      z-index: 25;
+      overflow: hidden;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .fault-tray.collapsed {
+      transform: translateY(calc(100% - 42px));
+    }
+
+    .fault-tray-header {
+      height: 42px;
+      padding: 0 14px;
+      background: rgba(0, 0, 0, 0.25);
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .fault-tray-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .fault-tray-toggle {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .fault-tray-body {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fault-action-btn {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+
+    .fault-action-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .fault-action-btn.danger-act:hover {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: var(--danger);
+      color: #fca5a5;
+    }
+
+    .fault-action-btn.warn-act:hover {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: var(--warn);
+      color: #fde68a;
+    }
+
+    .fault-action-btn.safe-act:hover {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: var(--safe);
+      color: #86efac;
+    }
+
+    /* INTERACTIVE COMPONENT POPUP SLIDER / MODAL */
+    .sensor-popup {
+      position: absolute;
+      background: #111827;
+      border: 1px solid var(--accent);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px var(--accent-glow);
+      border-radius: 10px;
+      padding: 14px;
+      width: 240px;
+      z-index: 100;
+      display: none;
+      animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .sensor-popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 6px;
+    }
+
+    .sensor-popup-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      font-family: var(--font-mono);
+    }
+
+    .sensor-popup-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .sensor-slider {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+      margin: 8px 0;
+    }
+
+    .sensor-val-display {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #fff;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    /* TOAST ALERT */
+    #action-toast {
+      position: absolute;
+      top: 80px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.95);
+      border-left: 4px solid var(--accent);
+      border-top: 1px solid var(--panel-border);
+      border-right: 1px solid var(--panel-border);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateX(120%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #action-toast.show {
+      transform: translateX(0);
+    }
+
+    /* SVG WIRE STYLING & INTERACTION */
+    .circuit-wire {
+      fill: none;
+      cursor: pointer;
+      transition: stroke-width 0.15s, filter 0.2s;
+    }
+
+    .circuit-wire:hover {
+      stroke-width: 8px !important;
+      filter: drop-shadow(0 0 6px currentColor);
+    }
+
+    .circuit-wire-highlight {
+      stroke-width: 9px !important;
+      filter: drop-shadow(0 0 10px #38bdf8) !important;
+    }
+
+    .interactive-component {
+      cursor: pointer;
+      transition: filter 0.2s, transform 0.2s;
+    }
+
+    .interactive-component:hover {
+      filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
+    }
+
+    .interactive-component:active {
+      transform: scale(0.98);
+    }
+
+    /* PIN TAGS */
+    .pin-label-tag {
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .pin-label-tag.hidden {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP APPLICATION BAR -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-logo">⚡</div>
+      <div>
+        <div class="brand-title">EV BATTERY AI — HARDWARE TWIN</div>
+      </div>
+      <div class="brand-badge">BMS Circuit Twin v2.0</div>
+    </div>
+
+    <!-- TABS NAVIGATION -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="circuit">
+        <span>🔌</span> Circuit View
+      </button>
+      <button class="tab-btn" data-tab="platformio">
+        <span>⚙️</span> platformio.ini
+      </button>
+      <button class="tab-btn" data-tab="config">
+        <span>📄</span> config.h
+      </button>
+      <button class="tab-btn" data-tab="main">
+        <span>💻</span> main.cpp
+      </button>
+    </nav>
+
+    <!-- RIGHT HEADER CONTROLS -->
+    <div class="header-actions">
+      <div class="status-pill" id="backend-status-pill">
+        <div class="status-dot"></div>
+        <span id="backend-status-text">Backend: Polling...</span>
+      </div>
+
+      <button class="hdr-btn" id="stream-toggle-btn" title="Toggle automatic telemetry streaming to backend">
+        <span>📡</span> <span id="stream-btn-text">Stream: Active</span>
+      </button>
+
+      <button class="hdr-btn" id="export-netlist-btn" title="Export circuit netlist as JSON">
+        <span>📥</span> Netlist
+      </button>
+
+      <a href="dashboard.html" class="hdr-btn primary" title="Open AI Monitor Dashboard">
+        <span>📊</span> Dashboard
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="workspace-container">
+
+    <!-- TAB 1: CIRCUIT INTERACTIVE VIEWPORT -->
+    <div class="view-panel active" id="panel-circuit">
+
+      <!-- LIVE BMS TELEMETRY HUD -->
+      <div class="telemetry-hud">
+        <div class="hud-metric">
+          <span class="hud-label">Cell 1 Temp</span>
+          <span class="hud-val safe" id="hud-temp1">31.2°C</span>
+        </div>
+        <div class="hud-separator"></div>
+        <div class="hud-metric">
+          <span class="hud-label">Cell 2 Temp</span>
+          <span class="hud-val safe" id="hud-temp2">30.8°C</span>
+        </div>
+        <div class="hud-separator"></div>
+        <div class="hud-metric">
+          <span class="hud-label">Gas / VOC</span>
+          <span class="hud-val safe" id="hud-gas">85 ppm</span>
+        </div>
+        <div class="hud-separator"></div>
+        <div class="hud-metric">
+          <span class="hud-label">Pack Voltage</span>
+          <span class="hud-val safe" id="hud-voltage">3.74 V</span>
+        </div>
+        <div class="hud-separator"></div>
+        <div class="hud-metric">
+          <span class="hud-label">Relay Contactor</span>
+          <span class="hud-val safe" id="hud-relay">CLOSED (ENGAGED)</span>
+        </div>
+        <div class="hud-separator"></div>
+        <div class="hud-metric">
+          <span class="hud-label">AI Reignition Risk</span>
+          <span class="hud-val safe" id="hud-risk">6.2%</span>
+        </div>
+      </div>
+
+      <!-- CIRCUIT SVG CANVAS -->
+      <div id="circuit-viewport">
+        <svg id="circuit-svg" viewBox="0 0 1600 950">
+          <defs>
+            <!-- Drop Shadow Filter -->
+            <filter id="wire-shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="2" dy="5" stdDeviation="4" flood-color="#000000" flood-opacity="0.6"/>
+            </filter>
+            <filter id="component-shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="3" dy="8" stdDeviation="8" flood-color="#000000" flood-opacity="0.5"/>
+            </filter>
+            <!-- LED Glow Filters -->
+            <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            <filter id="glow-yellow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            <filter id="glow-red" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            <!-- ESP32 Metal Shield Gradient -->
+            <linearGradient id="metal-grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#94a3b8"/>
+              <stop offset="30%" stop-color="#e2e8f0"/>
+              <stop offset="50%" stop-color="#cbd5e1"/>
+              <stop offset="70%" stop-color="#f8fafc"/>
+              <stop offset="100%" stop-color="#64748b"/>
+            </linearGradient>
+            <!-- MQ-2 Mesh Pattern -->
+            <pattern id="mesh-pattern" width="6" height="6" patternUnits="userSpaceOnUse">
+              <circle cx="3" cy="3" r="1.5" fill="#475569"/>
+            </pattern>
+          </defs>
+
+          <!-- SVG ZOOM/PAN TRANSFORM GROUP -->
+          <g id="circuit-root-transform" transform="translate(40, 20) scale(0.92)">
+            
+            <!-- LAYER 1: BREADBOARD -->
+            <g id="layer-breadboard"></g>
+
+            <!-- LAYER 2: MOUNTED COMPONENTS & SENSORS -->
+            <g id="layer-components"></g>
+
+            <!-- LAYER 3: CURVED JUMPER WIRES -->
+            <g id="layer-wires"></g>
+
+            <!-- LAYER 4: PIN LABELS & ANCHORS -->
+            <g id="layer-labels"></g>
+
+          </g>
+        </svg>
+      </div>
+
+      <!-- BOTTOM CONTROL DOCK -->
+      <div class="bottom-dock">
+        <button class="dock-btn" id="btn-zoom-out" title="Zoom Out">
+          <span>➖</span>
+        </button>
+        <span class="zoom-level-text" id="zoom-level-display" title="Reset Zoom to 100%">92%</span>
+        <button class="dock-btn" id="btn-zoom-in" title="Zoom In">
+          <span>➕</span>
+        </button>
+        <button class="dock-btn" id="btn-fit-screen" title="Fit to Screen">
+          <span>⛶</span> Fit
+        </button>
+        <div class="dock-divider"></div>
+        <button class="dock-btn active" id="btn-toggle-labels" title="Toggle Pin Labels and Tags">
+          <span>🏷️</span> Labels: ON
+        </button>
+        <div class="dock-divider"></div>
+        <button class="dock-btn" id="btn-center-board" title="Recenter Breadboard">
+          <span>🎯</span> Center
+        </button>
+      </div>
+
+      <!-- COLLAPSIBLE FAULT INJECTION TRAY -->
+      <div class="fault-tray" id="fault-tray">
+        <div class="fault-tray-header" id="fault-tray-toggle">
+          <div class="fault-tray-title">
+            <span>⚡</span> Fault Injection & Telemetry
+          </div>
+          <div class="fault-tray-toggle" id="fault-tray-chevron">▲</div>
+        </div>
+        <div class="fault-tray-body">
+          <button class="fault-action-btn danger-act" id="trigger-runaway-btn">
+            <span>🔥 Thermal Runaway Fault</span>
+            <span style="font-size:10px; opacity:0.8;">&gt;85°C</span>
+          </button>
+          <button class="fault-action-btn warn-act" id="trigger-gas-btn">
+            <span>💨 Gas Leak / Off-Gas Spike</span>
+            <span style="font-size:10px; opacity:0.8;">1450 ppm</span>
+          </button>
+          <button class="fault-action-btn danger-act" id="trigger-crash-btn">
+            <span>💥 Collision / Crash Impact</span>
+            <span style="font-size:10px; opacity:0.8;">15.4G</span>
+          </button>
+          <button class="fault-action-btn" id="trigger-relay-trip-btn">
+            <span>🛑 Force Contactor Trip</span>
+            <span style="font-size:10px; opacity:0.8;">Relay OFF</span>
+          </button>
+          <button class="fault-action-btn safe-act" id="trigger-reset-btn">
+            <span>✅ Restore Optimal State</span>
+            <span style="font-size:10px; opacity:0.8;">Normal</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- SENSOR POPUP SLIDER / MODAL -->
+      <div class="sensor-popup" id="sensor-modal">
+        <div class="sensor-popup-header">
+          <span class="sensor-popup-title" id="sensor-modal-title">SENSOR TUNER</span>
+          <button class="sensor-popup-close" id="sensor-modal-close">✕</button>
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;" id="sensor-modal-desc">Adjust real-time reading:</div>
+        <input type="range" class="sensor-slider" id="sensor-modal-slider" min="0" max="100" value="50">
+        <div class="sensor-val-display" id="sensor-modal-val">50.0</div>
+        <div style="display:flex; justify-content:space-between; margin-top:10px;">
+          <button class="dock-btn active" id="sensor-modal-pulse-btn" style="padding:4px 8px; font-size:11px;">⚡ Inject Spike</button>
+          <button class="dock-btn" id="sensor-modal-ok-btn" style="padding:4px 8px; font-size:11px;">Done</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: platformio.ini -->
+    <div class="view-panel" id="panel-platformio">
+      <div class="code-editor-wrap">
+        <div class="code-topbar">
+          <div class="code-title"><span>⚙️</span> platformio.ini — PlatformIO Project Configuration</div>
+          <div class="code-actions">
+            <button class="code-copy-btn" onclick="copyCode('code-platformio')">📋 Copy</button>
+          </div>
+        </div>
+        <div class="code-scrollable">
+          <pre id="code-platformio"><code><span class="c-comment">; ====================================================================</span>
+<span class="c-comment">; PlatformIO Configuration for EV Battery AI - Hardware Edge Node</span>
+<span class="c-comment">; Target Microcontroller: ESP32 DevKit V1 (30-Pin)</span>
+<span class="c-comment">; ====================================================================</span>
+
+<span class="c-section">[platformio]</span>
+<span class="c-keyword">default_envs</span> = esp32dev
+<span class="c-keyword">description</span>  = IoT BMS Edge Node with MQ-2, Dual Dallas Temp & Safety Contactor
+
+<span class="c-section">[env:esp32dev]</span>
+<span class="c-keyword">platform</span>      = <span class="c-str">espressif32 @ ~6.5.0</span>
+<span class="c-keyword">board</span>         = <span class="c-str">esp32doit-devkit-v1</span>
+<span class="c-keyword">framework</span>     = <span class="c-str">arduino</span>
+<span class="c-keyword">monitor_speed</span> = <span class="c-num">115200</span>
+<span class="c-keyword">upload_speed</span>  = <span class="c-num">921600</span>
+
+<span class="c-comment">; Embedded Libraries dependencies</span>
+<span class="c-keyword">lib_deps</span> =
+    <span class="c-str">bblanchon/ArduinoJson @ ^6.21.3</span>
+    <span class="c-str">paulstoffregen/OneWire @ ^2.3.8</span>
+    <span class="c-str">milesburton/DallasTemperature @ ^3.11.0</span>
+
+<span class="c-comment">; Build Flags and Optimizations</span>
+<span class="c-keyword">build_flags</span> =
+    <span class="c-str">-DCORE_DEBUG_LEVEL=3</span>
+    <span class="c-str">-DCONFIG_ARDUHAL_LOG_COLORS=1</span>
+    <span class="c-str">-DTELEMETRY_INTERVAL_MS=500</span>
+</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: config.h -->
+    <div class="view-panel" id="panel-config">
+      <div class="code-editor-wrap">
+        <div class="code-topbar">
+          <div class="code-title"><span>📄</span> include/config.h — Hardware Pinouts & Thresholds</div>
+          <div class="code-actions">
+            <button class="code-copy-btn" onclick="copyCode('code-config')">📋 Copy</button>
+          </div>
+        </div>
+        <div class="code-scrollable">
+          <pre id="code-config"><code><span class="c-preproc">#pragma once</span>
+
+<span class="c-comment">/**
+ * config.h
+ * --------
+ * Hardware Pin Assignments and System Thresholds
+ * Matching the 2D Circuit Visualizer Breadboard Netlist
+ */</span>
+
+<span class="c-comment">// ====================================================================</span>
+<span class="c-comment">// 1. GPIO Pinout Definitions</span>
+<span class="c-comment">// ====================================================================</span>
+<span class="c-preproc">#define</span> <span class="c-func">PIN_MQ2_ANALOG</span>      <span class="c-num">34</span>  <span class="c-comment">// ADC1_CH6: MQ-2 Gas / VOC Analog Voltage</span>
+<span class="c-preproc">#define</span> <span class="c-func">PIN_TEMP_PROBE1</span>     <span class="c-num">4</span>   <span class="c-comment">// GPIO4: Dallas 1-Wire Bus (Cell 1 Temp)</span>
+<span class="c-preproc">#define</span> <span class="c-func">PIN_TEMP_PROBE2</span>     <span class="c-num">15</span>  <span class="c-comment">// GPIO15: Dallas / Thermistor (Cell 2 Temp)</span>
+<span class="c-preproc">#define</span> <span class="c-func">PIN_SHOCK_SW420</span>     <span class="c-num">13</span>  <span class="c-comment">// GPIO13: SW-420 Crash Impact Digital Interrupt</span>
+<span class="c-preproc">#define</span> <span class="c-func">PIN_RELAY_CUTOFF</span>    <span class="c-num">23</span>  <span class="c-comment">// GPIO23: 5V Relay Coil (High-Voltage Contactor)</span>
+
+<span class="c-comment">// Status LED Indicators (via 220 Ohm current-limiting resistors)</span>
+<span class="c-preproc">#define</span> <span class="c-func">PIN_LED_SAFE</span>        <span class="c-num">18</span>  <span class="c-comment">// Green LED: Normal operation</span>
+<span class="c-preproc">#define</span> <span class="c-func">PIN_LED_WARN</span>        <span class="c-num">19</span>  <span class="c-comment">// Amber LED: Gas venting or moderate heat</span>
+<span class="c-preproc">#define</span> <span class="c-func">PIN_LED_EMERGENCY</span>   <span class="c-num">21</span>  <span class="c-comment">// Red LED: Thermal runaway or contactor tripped</span>
+
+<span class="c-comment">// ====================================================================</span>
+<span class="c-comment">// 2. Calibration & Safety Thresholds</span>
+<span class="c-comment">// ====================================================================</span>
+<span class="c-preproc">#define</span> <span class="c-func">MQ2_CLEAN_AIR_R0</span>    <span class="c-num">10.0</span>   <span class="c-comment">// Clean air sensor resistance (kOhms)</span>
+<span class="c-preproc">#define</span> <span class="c-func">TEMP_MAX_SAFE</span>       <span class="c-num">60.0</span>   <span class="c-comment">// Critical cell temperature threshold (°C)</span>
+<span class="c-preproc">#define</span> <span class="c-func">GAS_MAX_SAFE_PPM</span>    <span class="c-num">400.0</span>  <span class="c-comment">// Off-gas hazard threshold (ppm)</span>
+<span class="c-preproc">#define</span> <span class="c-func">AI_RISK_TRIP_LIMIT</span>  <span class="c-num">0.75</span>   <span class="c-comment">// Auto-trip relay if AI Reignition Risk >= 75%</span>
+
+<span class="c-comment">// ====================================================================</span>
+<span class="c-comment">// 3. Backend Telemetry Ingestion API</span>
+<span class="c-comment">// ====================================================================</span>
+<span class="c-preproc">#define</span> <span class="c-func">WIFI_SSID</span>           <span class="c-str">"EV_LAB_WIFI"</span>
+<span class="c-preproc">#define</span> <span class="c-func">WIFI_PASS</span>           <span class="c-str">"SecureBMS2026!"</span>
+<span class="c-preproc">#define</span> <span class="c-func">BACKEND_API_URL</span>     <span class="c-str">"http://192.168.1.100:5000/api/telemetry"</span>
+<span class="c-preproc">#define</span> <span class="c-func">TELEMETRY_INTERVAL</span>  <span class="c-num">500</span>    <span class="c-comment">// Ingestion packet period in milliseconds</span>
+</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: main.cpp -->
+    <div class="view-panel" id="panel-main">
+      <div class="code-editor-wrap">
+        <div class="code-topbar">
+          <div class="code-title"><span>💻</span> src/main.cpp — FreeRTOS Dual-Core Firmware Engine</div>
+          <div class="code-actions">
+            <button class="code-copy-btn" onclick="copyCode('code-main')">📋 Copy</button>
+          </div>
+        </div>
+        <div class="code-scrollable">
+          <pre id="code-main"><code><span class="c-preproc">#include</span> <span class="c-str">&lt;Arduino.h&gt;</span>
+<span class="c-preproc">#include</span> <span class="c-str">&lt;WiFi.h&gt;</span>
+<span class="c-preproc">#include</span> <span class="c-str">&lt;HTTPClient.h&gt;</span>
+<span class="c-preproc">#include</span> <span class="c-str">&lt;ArduinoJson.h&gt;</span>
+<span class="c-preproc">#include</span> <span class="c-str">&lt;OneWire.h&gt;</span>
+<span class="c-preproc">#include</span> <span class="c-str">&lt;DallasTemperature.h&gt;</span>
+<span class="c-preproc">#include</span> <span class="c-str">"config.h"</span>
+
+<span class="c-comment">// Sensor Bus Instances</span>
+<span class="c-type">OneWire</span> oneWire(PIN_TEMP_PROBE1);
+<span class="c-type">DallasTemperature</span> tempSensors(&oneWire);
+
+<span class="c-comment">// Global BMS State Structure</span>
+<span class="c-keyword">struct</span> <span class="c-type">BmsTelemetry</span> {
+    <span class="c-type">float</span> temp1;
+    <span class="c-type">float</span> temp2;
+    <span class="c-type">float</span> voltage;
+    <span class="c-type">float</span> gas_ppm;
+    <span class="c-type">bool</span>  impact_tripped;
+    <span class="c-type">bool</span>  relay_engaged;
+    <span class="c-type">float</span> predicted_risk;
+} g_telemetry = {28.0f, 27.5f, 3.74f, 85.0f, false, true, 0.05f};
+
+<span class="c-type">portMUX_TYPE</span> g_mux = portMUX_INITIALIZER_UNLOCKED;
+
+<span class="c-comment">// Crash Interrupt Service Routine</span>
+<span class="c-type">void</span> IRAM_ATTR <span class="c-func">onCrashImpact</span>() {
+    <span class="c-func">portENTER_CRITICAL_ISR</span>(&g_mux);
+    g_telemetry.impact_tripped = true;
+    <span class="c-comment">// Immediate hardware trip on mechanical collision</span>
+    <span class="c-func">digitalWrite</span>(PIN_RELAY_CUTOFF, HIGH);
+    g_telemetry.relay_engaged = false;
+    <span class="c-func">portEXIT_CRITICAL_ISR</span>(&g_mux);
+}
+
+<span class="c-comment">// TASK 1: High-Speed Sensor Acquisition (Pinned to Core 0)</span>
+<span class="c-type">void</span> <span class="c-func">TaskSensors</span>(<span class="c-type">void</span>* pvParameters) {
+    <span class="c-keyword">for</span>(;;) {
+        <span class="c-comment">// Read MQ-2 Gas sensor with 12-bit ADC filtering</span>
+        <span class="c-type">int</span> raw_adc = <span class="c-func">analogRead</span>(PIN_MQ2_ANALOG);
+        <span class="c-type">float</span> gas = (raw_adc / <span class="c-num">4095.0f</span>) * <span class="c-num">2000.0f</span>;
+
+        <span class="c-comment">// Dallas 1-Wire temperature acquisition</span>
+        tempSensors.<span class="c-func">requestTemperatures</span>();
+        <span class="c-type">float</span> t1 = tempSensors.<span class="c-func">getTempCByIndex</span>(<span class="c-num">0</span>);
+        <span class="c-type">float</span> t2 = t1 + <span class="c-num">0.4f</span>;
+
+        <span class="c-func">portENTER_CRITICAL</span>(&g_mux);
+        g_telemetry.gas_ppm = gas;
+        <span class="c-keyword">if</span> (t1 &gt; -<span class="c-num">50.0f</span>) g_telemetry.temp1 = t1;
+        g_telemetry.temp2 = t2;
+        <span class="c-func">portEXIT_CRITICAL</span>(&g_mux);
+
+        <span class="c-comment">// Update visual LED indicators</span>
+        <span class="c-keyword">if</span> (g_telemetry.predicted_risk &gt;= AI_RISK_TRIP_LIMIT || !g_telemetry.relay_engaged) {
+            <span class="c-func">digitalWrite</span>(PIN_LED_EMERGENCY, HIGH);
+            <span class="c-func">digitalWrite</span>(PIN_LED_WARN, LOW);
+            <span class="c-func">digitalWrite</span>(PIN_LED_SAFE, LOW);
+        } <span class="c-keyword">else if</span> (gas &gt; GAS_MAX_SAFE_PPM || t1 &gt; <span class="c-num">45.0f</span>) {
+            <span class="c-func">digitalWrite</span>(PIN_LED_EMERGENCY, LOW);
+            <span class="c-func">digitalWrite</span>(PIN_LED_WARN, HIGH);
+            <span class="c-func">digitalWrite</span>(PIN_LED_SAFE, LOW);
+        } <span class="c-keyword">else</span> {
+            <span class="c-func">digitalWrite</span>(PIN_LED_EMERGENCY, LOW);
+            <span class="c-func">digitalWrite</span>(PIN_LED_WARN, LOW);
+            <span class="c-func">digitalWrite</span>(PIN_LED_SAFE, HIGH);
+        }
+
+        <span class="c-func">vTaskDelay</span>(<span class="c-func">pdMS_TO_TICKS</span>(<span class="c-num">100</span>));
+    }
+}
+
+<span class="c-comment">// TASK 2: WiFi HTTP Telemetry Dispatcher (Pinned to Core 1)</span>
+<span class="c-type">void</span> <span class="c-func">TaskTelemetry</span>(<span class="c-type">void</span>* pvParameters) {
+    <span class="c-keyword">for</span>(;;) {
+        <span class="c-keyword">if</span> (WiFi.<span class="c-func">status</span>() == WL_CONNECTED) {
+            <span class="c-type">HTTPClient</span> http;
+            http.<span class="c-func">begin</span>(BACKEND_API_URL);
+            http.<span class="c-func">addHeader</span>(<span class="c-str">"Content-Type"</span>, <span class="c-str">"application/json"</span>);
+
+            <span class="c-type">StaticJsonDocument&lt;256&gt;</span> doc;
+            doc[<span class="c-str">"temp1"</span>]      = g_telemetry.temp1;
+            doc[<span class="c-str">"temp2"</span>]      = g_telemetry.temp2;
+            doc[<span class="c-str">"voltage"</span>]    = g_telemetry.voltage;
+            doc[<span class="c-str">"gas"</span>]        = g_telemetry.gas_ppm;
+            doc[<span class="c-str">"device_id"</span>]  = <span class="c-str">"ESP32-HARDWARE-TWIN"</span>;
+
+            <span class="c-type">String</span> payload;
+            <span class="c-func">serializeJson</span>(doc, payload);
+
+            <span class="c-type">int</span> code = http.<span class="c-func">POST</span>(payload);
+            <span class="c-keyword">if</span> (code == <span class="c-num">200</span>) {
+                <span class="c-type">String</span> response = http.<span class="c-func">getString</span>();
+                <span class="c-type">StaticJsonDocument&lt;256&gt;</span> resDoc;
+                <span class="c-func">deserializeJson</span>(resDoc, response);
+                <span class="c-type">float</span> risk = resDoc[<span class="c-str">"risk"</span>] | <span class="c-num">0.0f</span>;
+                g_telemetry.predicted_risk = risk;
+
+                <span class="c-comment">// Automatic AI Trip Protection</span>
+                <span class="c-keyword">if</span> (risk &gt;= AI_RISK_TRIP_LIMIT) {
+                    <span class="c-func">digitalWrite</span>(PIN_RELAY_CUTOFF, HIGH);
+                    g_telemetry.relay_engaged = false;
+                }
+            }
+            http.<span class="c-func">end</span>();
+        }
+        <span class="c-func">vTaskDelay</span>(<span class="c-func">pdMS_TO_TICKS</span>(TELEMETRY_INTERVAL));
+    }
+}
+
+<span class="c-type">void</span> <span class="c-func">setup</span>() {
+    <span class="c-func">Serial</span>.<span class="c-func">begin</span>(<span class="c-num">115200</span>);
+    
+    <span class="c-comment">// GPIO Configuration</span>
+    <span class="c-func">pinMode</span>(PIN_MQ2_ANALOG, INPUT);
+    <span class="c-func">pinMode</span>(PIN_SHOCK_SW420, INPUT_PULLUP);
+    <span class="c-func">pinMode</span>(PIN_RELAY_CUTOFF, OUTPUT);
+    <span class="c-func">pinMode</span>(PIN_LED_SAFE, OUTPUT);
+    <span class="c-func">pinMode</span>(PIN_LED_WARN, OUTPUT);
+    <span class="c-func">pinMode</span>(PIN_LED_EMERGENCY, OUTPUT);
+
+    <span class="c-func">digitalWrite</span>(PIN_RELAY_CUTOFF, LOW); <span class="c-comment">// Contactor Closed (Engaged)</span>
+    <span class="c-func">attachInterrupt</span>(<span class="c-func">digitalPinToInterrupt</span>(PIN_SHOCK_SW420), onCrashImpact, RISING);
+
+    tempSensors.<span class="c-func">begin</span>();
+    WiFi.<span class="c-func">begin</span>(WIFI_SSID, WIFI_PASS);
+
+    <span class="c-comment">// Launch FreeRTOS Tasks</span>
+    <span class="c-func">xTaskCreatePinnedToCore</span>(TaskSensors, <span class="c-str">"TaskSensors"</span>, <span class="c-num">4096</span>, NULL, <span class="c-num">1</span>, NULL, <span class="c-num">0</span>);
+    <span class="c-func">xTaskCreatePinnedToCore</span>(TaskTelemetry, <span class="c-str">"TaskTelemetry"</span>, <span class="c-num">4096</span>, NULL, <span class="c-num">1</span>, NULL, <span class="c-num">1</span>);
+}
+
+<span class="c-type">void</span> <span class="c-func">loop</span>() {
+    <span class="c-comment">// Idle loop; all execution handled in FreeRTOS tasks</span>
+    <span class="c-func">vTaskDelay</span>(<span class="c-func">pdMS_TO_TICKS</span>(<span class="c-num">1000</span>));
+}
+</code></pre>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ACTION TOAST -->
+  <div id="action-toast">
+    <span id="toast-icon">⚡</span>
+    <span id="toast-msg">Fault Injected</span>
+  </div>
+
+  <!-- JAVASCRIPT SIMULATION & RENDERING ENGINE -->
+  <script>
+    /**
+     * BREADBOARD CIRCUIT SIMULATOR & TELEMETRY ENGINE
+     */
+    
+    // --- GLOBAL STATE ---
+    const state = {
+      // Simulation variables
+      temp1: 31.2,
+      temp2: 30.8,
+      gas: 85.0,
+      voltage: 3.74,
+      shock_g: 0.1,
+      relay_engaged: true,
+      risk_score: 0.062,
+      
+      // LEDs state
+      led_safe: true,
+      led_warn: false,
+      led_danger: false,
+      
+      // System & Network
+      backendOnline: false,
+      streamingActive: true,
+      streamInterval: null,
+      
+      // Viewport transform
+      zoom: 0.92,
+      panX: 40,
+      panY: 20,
+      isPanning: false,
+      startX: 0,
+      startY: 0,
+      
+      // Labels toggle
+      showLabels: true
+    };
+
+    // --- AUDIO SYNTHESIS (Web Audio API) ---
+    let audioCtx = null;
+    function playClickSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+      } catch(e) {}
+    }
+
+    function playAlertBeep() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(1174, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } catch(e) {}
+    }
+
+    // --- COORDINATE MAPPINGS (830 TIE-POINT BREADBOARD) ---
+    // Breadboard dimensions: 1100px x 420px
+    const BB = {
+      x: 250,
+      y: 120,
+      width: 1080,
+      height: 440,
+      cols: 30,
+      pitchX: 30,
+      pitchY: 22,
+      // Tie hole rows relative to BB.y
+      rowPosTop: 165,
+      rowNegTop: 187,
+      rowA: 230,
+      rowB: 252,
+      rowC: 274,
+      rowD: 296,
+      rowE: 318,
+      trenchY: 340, // 0.3" center gutter
+      rowF: 362,
+      rowG: 384,
+      rowH: 406,
+      rowI: 428,
+      rowJ: 450,
+      rowPosBot: 495,
+      rowNegBot: 517
+    };
+
+    function getPinCoord(col, rowName) {
+      const x = BB.x + 80 + (col - 1) * BB.pitchX;
+      let y = BB.y;
+      switch(rowName) {
+        case 'RAIL_POS_TOP': y = BB.rowPosTop; break;
+        case 'RAIL_NEG_TOP': y = BB.rowNegTop; break;
+        case 'A': y = BB.rowA; break;
+        case 'B': y = BB.rowB; break;
+        case 'C': y = BB.rowC; break;
+        case 'D': y = BB.rowD; break;
+        case 'E': y = BB.rowE; break;
+        case 'F': y = BB.rowF; break;
+        case 'G': y = BB.rowG; break;
+        case 'H': y = BB.rowH; break;
+        case 'I': y = BB.rowI; break;
+        case 'J': y = BB.rowJ; break;
+        case 'RAIL_POS_BOT': y = BB.rowPosBot; break;
+        case 'RAIL_NEG_BOT': y = BB.rowNegBot; break;
+        default: y = BB.rowC;
+      }
+      return { x, y };
+    }
+
+    // --- RENDERING LAYER 1: BREADBOARD SVG ---
+    function renderBreadboard() {
+      const g = document.getElementById('layer-breadboard');
+      let html = '';
+
+      // Main breadboard body with beveled corners & drop shadow
+      html += `
+        <rect x="${BB.x}" y="${BB.y}" width="${BB.width}" height="${BB.height}" rx="14" ry="14" 
+              fill="var(--breadboard-body)" stroke="var(--breadboard-border)" stroke-width="3" 
+              filter="url(#component-shadow)"/>
+        
+        <!-- Center Divider Gutter Trench -->
+        <rect x="${BB.x + 20}" y="${BB.trenchY - 8}" width="${BB.width - 40}" height="16" fill="var(--breadboard-gutter)" rx="3"/>
+        <line x1="${BB.x + 20}" y1="${BB.trenchY}" x2="${BB.x + BB.width - 20}" y2="${BB.trenchY}" stroke="#a89f8d" stroke-width="1.5"/>
+
+        <!-- Top Power Rail Stripes -->
+        <line x1="${BB.x + 40}" y1="${BB.rowPosTop - 12}" x2="${BB.x + BB.width - 40}" y2="${BB.rowPosTop - 12}" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="${BB.x + 22}" y="${BB.rowPosTop - 8}" fill="#ef4444" font-family="var(--font-mono)" font-size="16" font-weight="bold">+</text>
+        <line x1="${BB.x + 40}" y1="${BB.rowNegTop + 14}" x2="${BB.x + BB.width - 40}" y2="${BB.rowNegTop + 14}" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="${BB.x + 22}" y="${BB.rowNegTop + 18}" fill="#3b82f6" font-family="var(--font-mono)" font-size="16" font-weight="bold">−</text>
+
+        <!-- Bottom Power Rail Stripes -->
+        <line x1="${BB.x + 40}" y1="${BB.rowPosBot - 12}" x2="${BB.x + BB.width - 40}" y2="${BB.rowPosBot - 12}" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="${BB.x + 22}" y="${BB.rowPosBot - 8}" fill="#ef4444" font-family="var(--font-mono)" font-size="16" font-weight="bold">+</text>
+        <line x1="${BB.x + 40}" y1="${BB.rowNegBot + 14}" x2="${BB.x + BB.width - 40}" y2="${BB.rowNegBot + 14}" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="${BB.x + 22}" y="${BB.rowNegBot + 18}" fill="#3b82f6" font-family="var(--font-mono)" font-size="16" font-weight="bold">−</text>
+      `;
+
+      // Column Numbers & Tie Holes
+      for (let col = 1; col <= BB.cols; col++) {
+        const x = BB.x + 80 + (col - 1) * BB.pitchX;
+
+        // Column numbering (every 5 columns)
+        if (col % 5 === 0 || col === 1) {
+          html += `<text x="${x}" y="${BB.rowA - 10}" text-anchor="middle" fill="#78716c" font-family="var(--font-mono)" font-size="10" font-weight="600">${col}</text>`;
+          html += `<text x="${x}" y="${BB.rowJ + 18}" text-anchor="middle" fill="#78716c" font-family="var(--font-mono)" font-size="10" font-weight="600">${col}</text>`;
+        }
+
+        // Power rail tie points
+        html += renderHole(x, BB.rowPosTop);
+        html += renderHole(x, BB.rowNegTop);
+        html += renderHole(x, BB.rowPosBot);
+        html += renderHole(x, BB.rowNegBot);
+
+        // Terminal rows A-E
+        html += renderHole(x, BB.rowA);
+        html += renderHole(x, BB.rowB);
+        html += renderHole(x, BB.rowC);
+        html += renderHole(x, BB.rowD);
+        html += renderHole(x, BB.rowE);
+
+        // Terminal rows F-J
+        html += renderHole(x, BB.rowF);
+        html += renderHole(x, BB.rowG);
+        html += renderHole(x, BB.rowH);
+        html += renderHole(x, BB.rowI);
+        html += renderHole(x, BB.rowJ);
+      }
+
+      // Row letter labels (A B C D E - F G H I J)
+      const rows = [
+        { l: 'A', y: BB.rowA }, { l: 'B', y: BB.rowB }, { l: 'C', y: BB.rowC }, { l: 'D', y: BB.rowD }, { l: 'E', y: BB.rowE },
+        { l: 'F', y: BB.rowF }, { l: 'G', y: BB.rowG }, { l: 'H', y: BB.rowH }, { l: 'I', y: BB.rowI }, { l: 'J', y: BB.rowJ }
+      ];
+      rows.forEach(r => {
+        html += `<text x="${BB.x + 50}" y="${r.y + 4}" fill="#78716c" font-family="var(--font-mono)" font-size="10" font-weight="bold">${r.l}</text>`;
+        html += `<text x="${BB.x + BB.width - 50}" y="${r.y + 4}" fill="#78716c" font-family="var(--font-mono)" font-size="10" font-weight="bold">${r.l}</text>`;
+      });
+
+      g.innerHTML = html;
+    }
+
+    function renderHole(x, y) {
+      return `
+        <rect x="${x - 4}" y="${y - 4}" width="8" height="8" rx="1.5" fill="var(--breadboard-pin)" stroke="var(--breadboard-pin-shine)" stroke-width="0.7"/>
+        <circle cx="${x}" cy="${y}" r="1.5" fill="#1c1917"/>
+      `;
+    }
+
+    // --- RENDERING LAYER 2: COMPONENTS & SENSORS ---
+    function renderComponents() {
+      const g = document.getElementById('layer-components');
+      let html = '';
+
+      // 1. ESP32 DevKit V1 (Straddling Trench, Cols 2 to 16)
+      const espX = BB.x + 80 + (2 - 1) * BB.pitchX - 15;
+      const espY = BB.trenchY - 60;
+      const espW = 15 * BB.pitchX + 30;
+      const espH = 120;
+      html += `
+        <g id="comp-esp32" class="interactive-component" filter="url(#component-shadow)">
+          <!-- Black Matte PCB -->
+          <rect x="${espX}" y="${espY}" width="${espW}" height="${espH}" rx="8" fill="#121824" stroke="#334155" stroke-width="2"/>
+          
+          <!-- Mounting Holes -->
+          <circle cx="${espX + 10}" cy="${espY + 10}" r="3" fill="#e2e8f0" stroke="#475569" stroke-width="1"/>
+          <circle cx="${espX + espW - 10}" cy="${espY + 10}" r="3" fill="#e2e8f0" stroke="#475569" stroke-width="1"/>
+          <circle cx="${espX + 10}" cy="${espY + espH - 10}" r="3" fill="#e2e8f0" stroke="#475569" stroke-width="1"/>
+          <circle cx="${espX + espW - 10}" cy="${espY + espH - 10}" r="3" fill="#e2e8f0" stroke="#475569" stroke-width="1"/>
+
+          <!-- Micro USB Port (Left side) -->
+          <rect x="${espX - 10}" y="${espY + espH/2 - 14}" width="16" height="28" rx="2" fill="url(#metal-grad)" stroke="#475569"/>
+          
+          <!-- ESP-WROOM-32 Metal RF Shield Can -->
+          <rect x="${espX + 105}" y="${espY + 16}" width="180" height="88" rx="5" fill="url(#metal-grad)" stroke="#64748b" stroke-width="1.5"/>
+          <!-- Espressif & FCC markings -->
+          <text x="${espX + 195}" y="${espY + 45}" text-anchor="middle" fill="#1e293b" font-family="var(--font-mono)" font-size="12" font-weight="bold">ESPRESSIF</text>
+          <text x="${espX + 195}" y="${espY + 62}" text-anchor="middle" fill="#334155" font-family="var(--font-mono)" font-size="10">ESP-WROOM-32</text>
+          <text x="${espX + 195}" y="${espY + 76}" text-anchor="middle" fill="#475569" font-family="var(--font-mono)" font-size="8">FCC ID: 2AC7Z-ESPWROOM32</text>
+
+          <!-- Tactile EN & BOOT Buttons -->
+          <rect x="${espX + 18}" y="${espY + 14}" width="16" height="16" rx="2" fill="#334155"/>
+          <circle cx="${espX + 26}" cy="${espY + 22}" r="5" fill="#94a3b8"/>
+          <text x="${espX + 26}" y="${espY + 38}" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="var(--font-mono)">EN</text>
+
+          <rect x="${espX + 18}" y="${espY + espH - 30}" width="16" height="16" rx="2" fill="#334155"/>
+          <circle cx="${espX + 26}" cy="${espY + espH - 22}" r="5" fill="#94a3b8"/>
+          <text x="${espX + 26}" y="${espY + espH - 6}" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="var(--font-mono)">BOOT</text>
+
+          <!-- Red Power LED -->
+          <circle cx="${espX + 50}" cy="${espY + 22}" r="3" fill="#ef4444" filter="url(#glow-red)"/>
+          <!-- Blue GPIO2 User LED -->
+          <circle id="esp-user-led" cx="${espX + 68}" cy="${espY + 22}" r="3" fill="#38bdf8"/>
+
+          <!-- Label -->
+          <text x="${espX + espW/2}" y="${espY + espH - 12}" text-anchor="middle" fill="#38bdf8" font-family="var(--font-mono)" font-size="11" font-weight="bold">ESP32 DevKit V1 (30-Pin)</text>
+        </g>
+      `;
+
+      // 2. MQ-2 Gas & Smoke Sensor Module (Top Right, above breadboard)
+      const mqX = BB.x + 650;
+      const mqY = BB.y - 100;
+      html += `
+        <g id="comp-mq2" class="interactive-component" filter="url(#component-shadow)" onclick="openSensorModal('gas')">
+          <!-- Blue Breakout PCB -->
+          <rect x="${mqX}" y="${mqY}" width="130" height="90" rx="8" fill="#1e3a8a" stroke="#3b82f6" stroke-width="1.5"/>
+          
+          <!-- Round Metallic Mesh Explosion-Proof Sensor Canister -->
+          <circle cx="${mqX + 65}" cy="${mqY + 45}" r="32" fill="#94a3b8" stroke="#cbd5e1" stroke-width="3"/>
+          <circle cx="${mqX + 65}" cy="${mqY + 45}" r="26" fill="url(#mesh-pattern)" stroke="#64748b"/>
+          <circle id="mq2-gas-plume" cx="${mqX + 65}" cy="${mqY + 45}" r="32" fill="rgba(245, 158, 11, 0.0)" filter="url(#glow-yellow)"/>
+
+          <!-- Trimpot Sensitivity Potentiometer -->
+          <rect x="${mqX + 10}" y="${mqY + 12}" width="18" height="18" rx="2" fill="#2563eb" stroke="#1d4ed8"/>
+          <circle cx="${mqX + 19}" cy="${mqY + 21}" r="4" fill="#fbbf24"/>
+
+          <!-- Status LEDs -->
+          <circle cx="${mqX + 112}" cy="${mqY + 18}" r="2.5" fill="#ef4444" filter="url(#glow-red)"/>
+          <circle id="mq2-dout-led" cx="${mqX + 112}" cy="${mqY + 30}" r="2.5" fill="#22c55e"/>
+
+          <!-- Label -->
+          <text x="${mqX + 65}" y="${mqY + 84}" text-anchor="middle" fill="#fff" font-family="var(--font-mono)" font-size="9" font-weight="bold">MQ-2 GAS / VOC</text>
+        </g>
+      `;
+
+      // 3. Dual Temperature Probes (DS18B20 1-Wire & Ambient Probe)
+      const tp1X = BB.x + 90;
+      const tp1Y = BB.y - 85;
+      html += `
+        <g id="comp-temp1" class="interactive-component" filter="url(#component-shadow)" onclick="openSensorModal('temp1')">
+          <!-- Waterproof Stainless Steel Probe 1 Cylinder -->
+          <rect x="${tp1X}" y="${tp1Y}" width="90" height="26" rx="6" fill="url(#metal-grad)" stroke="#475569" stroke-width="1.5"/>
+          <rect x="${tp1X + 60}" y="${tp1Y}" width="30" height="26" rx="2" fill="#0f172a"/>
+          <text x="${tp1X + 35}" y="${tp1Y + 17}" text-anchor="middle" fill="#0f172a" font-family="var(--font-mono)" font-size="9" font-weight="bold">CELL 1 PROBE</text>
+        </g>
+      `;
+
+      const tp2X = BB.x + 230;
+      const tp2Y = BB.y - 85;
+      html += `
+        <g id="comp-temp2" class="interactive-component" filter="url(#component-shadow)" onclick="openSensorModal('temp2')">
+          <!-- Waterproof Stainless Steel Probe 2 Cylinder -->
+          <rect x="${tp2X}" y="${tp2Y}" width="90" height="26" rx="6" fill="url(#metal-grad)" stroke="#475569" stroke-width="1.5"/>
+          <rect x="${tp2X + 60}" y="${tp2Y}" width="30" height="26" rx="2" fill="#0f172a"/>
+          <text x="${tp2X + 35}" y="${tp2Y + 17}" text-anchor="middle" fill="#0f172a" font-family="var(--font-mono)" font-size="9" font-weight="bold">CELL 2 PROBE</text>
+        </g>
+      `;
+
+      // 4. SW-420 Crash Impact / Vibration Sensor (Right side)
+      const swX = BB.x + 830;
+      const swY = BB.y - 90;
+      html += `
+        <g id="comp-sw420" class="interactive-component" filter="url(#component-shadow)" onclick="injectCrash()">
+          <rect x="${swX}" y="${swY}" width="100" height="75" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
+          <!-- Gold-plated spring tube sensor -->
+          <rect x="${swX + 16}" y="${swY + 20}" width="40" height="14" rx="7" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/>
+          <!-- LM393 Comparator Chip -->
+          <rect x="${swX + 65}" y="${swY + 18}" width="22" height="32" rx="2" fill="#1e293b"/>
+          <text x="${swX + 50}" y="${swY + 62}" text-anchor="middle" fill="#fff" font-family="var(--font-mono)" font-size="8" font-weight="bold">SW-420 SHOCK</text>
+        </g>
+      `;
+
+      // 5. 1-Channel 5V Relay Module (Songle Blue Cube - Bottom Center/Right)
+      const rX = BB.x + 580;
+      const rY = BB.y + BB.height + 40;
+      html += `
+        <g id="comp-relay" class="interactive-component" filter="url(#component-shadow)" onclick="toggleRelay()">
+          <!-- Blue PCB Base -->
+          <rect x="${rX}" y="${rY}" width="180" height="110" rx="8" fill="#1e3a8a" stroke="#2563eb" stroke-width="2"/>
+          
+          <!-- Royal Blue Songle Cube Relay Box -->
+          <rect id="relay-box" x="${rX + 15}" y="${rY + 15}" width="95" height="80" rx="4" fill="#1d4ed8" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="${rX + 62}" y="${rY + 40}" text-anchor="middle" fill="#fff" font-family="var(--font-mono)" font-size="11" font-weight="bold">SONGLE</text>
+          <text x="${rX + 62}" y="${rY + 54}" text-anchor="middle" fill="#bfdbfe" font-family="var(--font-mono)" font-size="8">SRD-05VDC-SL-C</text>
+          <text x="${rX + 62}" y="${rY + 68}" text-anchor="middle" fill="#93c5fd" font-family="var(--font-mono)" font-size="8">10A 250VAC / 30VDC</text>
+
+          <!-- Output Screw Terminal Block (Green) -->
+          <rect x="${rX + 120}" y="${rY + 20}" width="45" height="70" rx="4" fill="#15803d" stroke="#166534" stroke-width="1.5"/>
+          <!-- 3 Brass Screws -->
+          <circle cx="${rX + 142}" cy="${rY + 34}" r="5" fill="#facc15" stroke="#ca8a04"/>
+          <circle cx="${rX + 142}" cy="${rY + 55}" r="5" fill="#facc15" stroke="#ca8a04"/>
+          <circle cx="${rX + 142}" cy="${rY + 76}" r="5" fill="#facc15" stroke="#ca8a04"/>
+          <text x="${rX + 130}" y="${rY + 37}" fill="#fff" font-size="7" font-family="var(--font-mono)">NO</text>
+          <text x="${rX + 126}" y="${rY + 58}" fill="#fff" font-size="7" font-family="var(--font-mono)">COM</text>
+          <text x="${rX + 128}" y="${rY + 79}" fill="#fff" font-size="7" font-family="var(--font-mono)">NC</text>
+
+          <!-- Relay Status & Power LEDs -->
+          <circle cx="${rX + 15}" cy="${rY + 102}" r="3" fill="#22c55e" filter="url(#glow-green)"/>
+          <circle id="relay-trip-led" cx="${rX + 35}" cy="${rY + 102}" r="3" fill="#64748b"/>
+
+          <text x="${rX + 90}" y="${rY + 105}" text-anchor="middle" fill="#93c5fd" font-family="var(--font-mono)" font-size="9" font-weight="bold">HIGH-VOLTAGE CONTACTOR CUTOFF</text>
+        </g>
+      `;
+
+      // 6. Status LEDs & Resistors (Placed on Breadboard cols 20 to 24)
+      const pGreen = getPinCoord(20, 'E');
+      const pYellow = getPinCoord(22, 'E');
+      const pRed = getPinCoord(24, 'E');
+
+      html += `
+        <!-- Green LED (Normal Safe) -->
+        <g id="led-green-unit" filter="url(#component-shadow)">
+          <circle id="led-green-glow" cx="${pGreen.x}" cy="${pGreen.y - 18}" r="9" fill="#22c55e" filter="url(#glow-green)"/>
+          <circle cx="${pGreen.x}" cy="${pGreen.y - 18}" r="6" fill="#86efac" stroke="#16a34a" stroke-width="1"/>
+          <!-- Resistor 220 Ohm -->
+          <rect x="${pGreen.x - 4}" y="${pGreen.y + 6}" width="8" height="24" rx="3" fill="#fde68a" stroke="#d97706"/>
+          <line x1="${pGreen.x - 4}" y1="${pGreen.y + 11}" x2="${pGreen.x + 4}" y2="${pGreen.y + 11}" stroke="#dc2626" stroke-width="1.5"/>
+          <line x1="${pGreen.x - 4}" y1="${pGreen.y + 16}" x2="${pGreen.x + 4}" y2="${pGreen.y + 16}" stroke="#dc2626" stroke-width="1.5"/>
+          <line x1="${pGreen.x - 4}" y1="${pGreen.y + 21}" x2="${pGreen.x + 4}" y2="${pGreen.y + 21}" stroke="#78350f" stroke-width="1.5"/>
+        </g>
+
+        <!-- Yellow LED (Warning) -->
+        <g id="led-yellow-unit" filter="url(#component-shadow)">
+          <circle id="led-yellow-glow" cx="${pYellow.x}" cy="${pYellow.y - 18}" r="9" fill="#713f12" opacity="0.4"/>
+          <circle cx="${pYellow.x}" cy="${pYellow.y - 18}" r="6" fill="#fde047" stroke="#ca8a04" stroke-width="1"/>
+          <!-- Resistor 220 Ohm -->
+          <rect x="${pYellow.x - 4}" y="${pYellow.y + 6}" width="8" height="24" rx="3" fill="#fde68a" stroke="#d97706"/>
+          <line x1="${pYellow.x - 4}" y1="${pYellow.y + 11}" x2="${pYellow.x + 4}" y2="${pYellow.y + 11}" stroke="#dc2626" stroke-width="1.5"/>
+          <line x1="${pYellow.x - 4}" y1="${pYellow.y + 16}" x2="${pYellow.x + 4}" y2="${pYellow.y + 16}" stroke="#dc2626" stroke-width="1.5"/>
+          <line x1="${pYellow.x - 4}" y1="${pYellow.y + 21}" x2="${pYellow.x + 4}" y2="${pYellow.y + 21}" stroke="#78350f" stroke-width="1.5"/>
+        </g>
+
+        <!-- Red LED (Emergency Runaway) -->
+        <g id="led-red-unit" filter="url(#component-shadow)">
+          <circle id="led-red-glow" cx="${pRed.x}" cy="${pRed.y - 18}" r="9" fill="#450a0a" opacity="0.4"/>
+          <circle cx="${pRed.x}" cy="${pRed.y - 18}" r="6" fill="#f87171" stroke="#dc2626" stroke-width="1"/>
+          <!-- Resistor 220 Ohm -->
+          <rect x="${pRed.x - 4}" y="${pRed.y + 6}" width="8" height="24" rx="3" fill="#fde68a" stroke="#d97706"/>
+          <line x1="${pRed.x - 4}" y1="${pRed.y + 11}" x2="${pRed.x + 4}" y2="${pRed.y + 11}" stroke="#dc2626" stroke-width="1.5"/>
+          <line x1="${pRed.x - 4}" y1="${pRed.y + 16}" x2="${pRed.x + 4}" y2="${pRed.y + 16}" stroke="#dc2626" stroke-width="1.5"/>
+          <line x1="${pRed.x - 4}" y1="${pRed.y + 21}" x2="${pRed.x + 4}" y2="${pRed.y + 21}" stroke="#78350f" stroke-width="1.5"/>
+        </g>
+      `;
+
+      g.innerHTML = html;
+    }
+
+    // --- RENDERING LAYER 3: CURVED JUMPER WIRES (CUBIC BEZIER) ---
+    // Netlist based on architecture table W-01 to W-19
+    const netlist = [
+      // W-01: ESP32 VIN (Col 16, Row J) -> Top Rail Positive
+      { id: 'W-01', from: () => getPinCoord(16, 'J'), to: () => getPinCoord(16, 'RAIL_POS_TOP'), color: '#ef4444', sag: -45, net: '5V_USB_BUS' },
+      // W-02: ESP32 GND (Col 15, Row J) -> Top Rail Negative
+      { id: 'W-02', from: () => getPinCoord(15, 'J'), to: () => getPinCoord(15, 'RAIL_NEG_TOP'), color: '#1e293b', sag: -35, net: 'COMMON_GND' },
+      // W-03: Top Rail (+) to Bottom Rail (+) link (Col 1)
+      { id: 'W-03', from: () => getPinCoord(1, 'RAIL_POS_TOP'), to: () => getPinCoord(1, 'RAIL_POS_BOT'), color: '#ef4444', sag: 40, net: '5V_CROSS_BUS' },
+      // W-04: Top Rail (-) to Bottom Rail (-) link (Col 2)
+      { id: 'W-04', from: () => getPinCoord(2, 'RAIL_NEG_TOP'), to: () => getPinCoord(2, 'RAIL_NEG_BOT'), color: '#1e293b', sag: 40, net: 'GND_CROSS_BUS' },
+
+      // W-05: MQ-2 Gas Module VCC -> Top Rail (+)
+      { id: 'W-05', from: () => ({ x: BB.x + 670, y: BB.y - 10 }), to: () => getPinCoord(25, 'RAIL_POS_TOP'), color: '#ef4444', sag: 20, net: 'MQ2_5V_PWR' },
+      // W-06: MQ-2 Gas Module GND -> Top Rail (-)
+      { id: 'W-06', from: () => ({ x: BB.x + 690, y: BB.y - 10 }), to: () => getPinCoord(25, 'RAIL_NEG_TOP'), color: '#1e293b', sag: 20, net: 'MQ2_GND' },
+      // W-07: MQ-2 Gas Module AO -> ESP32 GPIO34 (Col 6, Row E)
+      { id: 'W-07', from: () => ({ x: BB.x + 750, y: BB.y - 10 }), to: () => getPinCoord(6, 'E'), color: '#2563eb', sag: -70, net: 'GPIO34_MQ2_ADC1' },
+
+      // W-08: Temp Probe 1 VCC -> ESP32 3V3 (Col 1, Row E)
+      { id: 'W-08', from: () => ({ x: BB.x + 110, y: BB.y - 60 }), to: () => getPinCoord(1, 'E'), color: '#f97316', sag: 35, net: '3V3_CLEAN_REF' },
+      // W-09: Temp Probe 1 GND -> Top Rail (-)
+      { id: 'W-09', from: () => ({ x: BB.x + 130, y: BB.y - 60 }), to: () => getPinCoord(5, 'RAIL_NEG_TOP'), color: '#1e293b', sag: 25, net: 'PROBE1_GND' },
+      // W-10: Temp Probe 1 DATA -> ESP32 GPIO4 (Col 7, Row E)
+      { id: 'W-10', from: () => ({ x: BB.x + 150, y: BB.y - 60 }), to: () => getPinCoord(7, 'E'), color: '#facc15', sag: 45, net: 'GPIO4_1WIRE_DQ' },
+
+      // W-12: Temp Probe 2 DATA -> ESP32 GPIO15 (Col 8, Row E)
+      { id: 'W-12', from: () => ({ x: BB.x + 270, y: BB.y - 60 }), to: () => getPinCoord(8, 'E'), color: '#84cc16', sag: 35, net: 'GPIO15_TEMP2' },
+
+      // W-13: SW-420 DO -> ESP32 GPIO13 (Col 9, Row E)
+      { id: 'W-13', from: () => ({ x: BB.x + 850, y: BB.y - 15 }), to: () => getPinCoord(9, 'E'), color: '#a855f7', sag: -60, net: 'GPIO13_SHOCK_INT' },
+
+      // W-14: Relay DC+ -> Bottom Rail (+)
+      { id: 'W-14', from: () => ({ x: BB.x + 600, y: BB.y + BB.height + 40 }), to: () => getPinCoord(20, 'RAIL_POS_BOT'), color: '#ef4444', sag: -30, net: 'RELAY_5V_COIL' },
+      // W-15: Relay DC- -> Bottom Rail (-)
+      { id: 'W-15', from: () => ({ x: BB.x + 620, y: BB.y + BB.height + 40 }), to: () => getPinCoord(21, 'RAIL_NEG_BOT'), color: '#1e293b', sag: -30, net: 'RELAY_COIL_GND' },
+      // W-16: Relay IN -> ESP32 GPIO23 (Col 10, Row J)
+      { id: 'W-16', from: () => ({ x: BB.x + 640, y: BB.y + BB.height + 40 }), to: () => getPinCoord(10, 'J'), color: '#06b6d4', sag: 50, net: 'GPIO23_RELAY_TRIP' },
+
+      // W-17: Green LED Anode -> ESP32 GPIO18 (Col 11, Row J)
+      { id: 'W-17', from: () => getPinCoord(20, 'A'), to: () => getPinCoord(11, 'J'), color: '#22c55e', sag: 55, net: 'GPIO18_LED_SAFE' },
+      // W-18: Yellow LED Anode -> ESP32 GPIO19 (Col 12, Row J)
+      { id: 'W-18', from: () => getPinCoord(22, 'A'), to: () => getPinCoord(12, 'J'), color: '#eab308', sag: 55, net: 'GPIO19_LED_WARN' },
+      // W-19: Red LED Anode -> ESP32 GPIO21 (Col 14, Row J)
+      { id: 'W-19', from: () => getPinCoord(24, 'A'), to: () => getPinCoord(14, 'J'), color: '#ef4444', sag: 55, net: 'GPIO21_LED_EMERGENCY' }
+    ];
+
+    function renderWires() {
+      const g = document.getElementById('layer-wires');
+      let html = '';
+
+      netlist.forEach(w => {
+        const p0 = w.from();
+        const p3 = w.to();
+        const dx = p3.x - p0.x;
+        const dy = p3.y - p0.y;
+        const sag = w.sag || 40;
+
+        // Cubic Bezier Control Points
+        const p1 = { x: p0.x + dx * 0.25, y: p0.y + dy * 0.25 + sag };
+        const p2 = { x: p3.x - dx * 0.25, y: p3.y - dy * 0.25 + sag };
+
+        const pathD = `M ${p0.x} ${p0.y} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${p3.x} ${p3.y}`;
+
+        // Multi-pass wire rendering (Shadow + Sheath + Specular)
+        html += `
+          <g id="wire-group-${w.id}">
+            <!-- Drop Shadow -->
+            <path d="${pathD}" fill="none" stroke="rgba(0,0,0,0.4)" stroke-width="7" stroke-linecap="round" transform="translate(2, 6)"/>
+            <!-- Outer Insulation Sheath -->
+            <path id="wire-${w.id}" class="circuit-wire" data-net="${w.net}" d="${pathD}" 
+                  stroke="${w.color}" stroke-width="5" stroke-linecap="round"
+                  onmouseover="highlightWire('${w.id}', '${w.net}', true)" 
+                  onmouseout="highlightWire('${w.id}', '${w.net}', false)"/>
+            <!-- Specular Highlight -->
+            <path d="${pathD}" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round" pointer-events="none"/>
+          </g>
+        `;
+      });
+
+      g.innerHTML = html;
+    }
+
+    function highlightWire(wireId, netName, active) {
+      const wireEl = document.getElementById(`wire-${wireId}`);
+      if (!wireEl) return;
+      if (active) {
+        wireEl.classList.add('circuit-wire-highlight');
+        showToast(`⚡ Wire: ${wireId} [Net: ${netName}]`);
+      } else {
+        wireEl.classList.remove('circuit-wire-highlight');
+      }
+    }
+
+    // --- RENDERING LAYER 4: PIN LABELS & ANCHORS ---
+    function renderPinLabels() {
+      const g = document.getElementById('layer-labels');
+      let html = '';
+
+      const labels = [
+        { name: 'VIN (+5V)', coord: getPinCoord(16, 'J'), type: 'pwr' },
+        { name: 'GND', coord: getPinCoord(15, 'J'), type: 'gnd' },
+        { name: '3V3', coord: getPinCoord(1, 'E'), type: 'pwr' },
+        { name: 'GPIO34 (A0)', coord: getPinCoord(6, 'E'), type: 'analog' },
+        { name: 'GPIO4 (1W)', coord: getPinCoord(7, 'E'), type: 'digital' },
+        { name: 'GPIO15 (T2)', coord: getPinCoord(8, 'E'), type: 'digital' },
+        { name: 'GPIO13 (INT)', coord: getPinCoord(9, 'E'), type: 'digital' },
+        { name: 'GPIO23 (RLY)', coord: getPinCoord(10, 'J'), type: 'digital' },
+        { name: 'GPIO18 (GRN)', coord: getPinCoord(11, 'J'), type: 'digital' },
+        { name: 'GPIO19 (YEL)', coord: getPinCoord(12, 'J'), type: 'digital' },
+        { name: 'GPIO21 (RED)', coord: getPinCoord(14, 'J'), type: 'digital' },
+        { name: 'AOUT', coord: { x: BB.x + 750, y: BB.y - 10 }, type: 'analog' },
+        { name: 'IN', coord: { x: BB.x + 640, y: BB.y + BB.height + 40 }, type: 'digital' }
+      ];
+
+      labels.forEach(lb => {
+        let badgeBg = '#334155';
+        let badgeColor = '#f8fafc';
+        if (lb.type === 'pwr') { badgeBg = '#ef4444'; badgeColor = '#fff'; }
+        if (lb.type === 'gnd') { badgeBg = '#0f172a'; badgeColor = '#94a3b8'; }
+        if (lb.type === 'analog') { badgeBg = '#2563eb'; badgeColor = '#fff'; }
+        if (lb.type === 'digital') { badgeBg = '#0891b2'; badgeColor = '#fff'; }
+
+        html += `
+          <g class="pin-label-tag" transform="translate(${lb.coord.x}, ${lb.coord.y - 12})">
+            <rect x="-24" y="-8" width="48" height="15" rx="3" fill="${badgeBg}" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+            <text x="0" y="3" text-anchor="middle" fill="${badgeColor}" font-family="var(--font-mono)" font-size="8" font-weight="bold">${lb.name}</text>
+          </g>
+        `;
+      });
+
+      g.innerHTML = html;
+    }
+
+    // --- VIEWPORT MATRIX & ZOOM/PAN ENGINE ---
+    function updateViewportTransform() {
+      const root = document.getElementById('circuit-root-transform');
+      if (root) {
+        root.setAttribute('transform', `translate(${state.panX}, ${state.panY}) scale(${state.zoom})`);
+      }
+      const display = document.getElementById('zoom-level-display');
+      if (display) {
+        display.innerText = `${Math.round(state.zoom * 100)}%`;
+      }
+    }
+
+    function initViewportControls() {
+      const viewport = document.getElementById('circuit-viewport');
+
+      viewport.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.interactive-component') || e.target.closest('.circuit-wire')) return;
+        state.isPanning = true;
+        state.startX = e.clientX - state.panX;
+        state.startY = e.clientY - state.panY;
+        viewport.classList.add('panning');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!state.isPanning) return;
+        state.panX = e.clientX - state.startX;
+        state.panY = e.clientY - state.startY;
+        updateViewportTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        state.isPanning = false;
+        viewport.classList.remove('panning');
+      });
+
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomDelta = e.deltaY < 0 ? 0.08 : -0.08;
+        state.zoom = Math.min(2.5, Math.max(0.4, state.zoom + zoomDelta));
+        updateViewportTransform();
+      }, { passive: false });
+
+      // Bottom dock buttons
+      document.getElementById('btn-zoom-in').onclick = () => {
+        state.zoom = Math.min(2.5, state.zoom + 0.15);
+        updateViewportTransform();
+      };
+      document.getElementById('btn-zoom-out').onclick = () => {
+        state.zoom = Math.max(0.4, state.zoom - 0.15);
+        updateViewportTransform();
+      };
+      document.getElementById('zoom-level-display').onclick = () => {
+        state.zoom = 1.0;
+        updateViewportTransform();
+      };
+      document.getElementById('btn-fit-screen').onclick = () => {
+        state.zoom = 0.85;
+        state.panX = 50;
+        state.panY = 30;
+        updateViewportTransform();
+        showToast("⛶ Viewport reset to fit screen");
+      };
+      document.getElementById('btn-center-board').onclick = () => {
+        state.zoom = 0.95;
+        state.panX = 30;
+        state.panY = 20;
+        updateViewportTransform();
+      };
+
+      // Toggle Pin Labels
+      const btnToggle = document.getElementById('btn-toggle-labels');
+      btnToggle.onclick = () => {
+        state.showLabels = !state.showLabels;
+        btnToggle.classList.toggle('active', state.showLabels);
+        btnToggle.innerHTML = `<span>🏷️</span> Labels: ${state.showLabels ? 'ON' : 'OFF'}`;
+        document.querySelectorAll('.pin-label-tag').forEach(tag => {
+          tag.classList.toggle('hidden', !state.showLabels);
+        });
+        showToast(`Pin Labels: ${state.showLabels ? 'ENABLED' : 'HIDDEN'}`);
+      };
+    }
+
+    // --- BMS SIMULATION & HARDWARE TELEMETRY LOGIC ---
+    function updateTelemetryHUD() {
+      // Numbers formatting
+      document.getElementById('hud-temp1').innerText = `${state.temp1.toFixed(1)}°C`;
+      document.getElementById('hud-temp2').innerText = `${state.temp2.toFixed(1)}°C`;
+      document.getElementById('hud-gas').innerText = `${Math.round(state.gas)} ppm`;
+      document.getElementById('hud-voltage').innerText = `${state.voltage.toFixed(2)} V`;
+      document.getElementById('hud-risk').innerText = `${(state.risk_score * 100).toFixed(1)}%`;
+
+      const relayEl = document.getElementById('hud-relay');
+      if (state.relay_engaged) {
+        relayEl.innerText = "CLOSED (ENGAGED)";
+        relayEl.className = "hud-val safe";
+      } else {
+        relayEl.innerText = "OPEN (ISOLATED / TRIPPED)";
+        relayEl.className = "hud-val danger";
+      }
+
+      // Visual Status Indicators & LEDs
+      const riskEl = document.getElementById('hud-risk');
+      const temp1El = document.getElementById('hud-temp1');
+      const gasEl = document.getElementById('hud-gas');
+
+      // Temp 1 alert class
+      if (state.temp1 >= 65) temp1El.className = "hud-val danger";
+      else if (state.temp1 >= 45) temp1El.className = "hud-val warn";
+      else temp1El.className = "hud-val safe";
+
+      // Gas alert class
+      if (state.gas >= 800) gasEl.className = "hud-val danger";
+      else if (state.gas >= 350) gasEl.className = "hud-val warn";
+      else gasEl.className = "hud-val safe";
+
+      // Risk score alert class
+      if (state.risk_score >= 0.70) riskEl.className = "hud-val danger";
+      else if (state.risk_score >= 0.35) riskEl.className = "hud-val warn";
+      else riskEl.className = "hud-val safe";
+
+      // Hardware LEDs sync
+      const ledGreen = document.getElementById('led-green-glow');
+      const ledYellow = document.getElementById('led-yellow-glow');
+      const ledRed = document.getElementById('led-red-glow');
+      const relayTripLed = document.getElementById('relay-trip-led');
+      const mq2Plume = document.getElementById('mq2-gas-plume');
+
+      if (!state.relay_engaged || state.risk_score >= 0.75) {
+        if (ledGreen) ledGreen.setAttribute('opacity', '0.2');
+        if (ledYellow) ledYellow.setAttribute('opacity', '0.2');
+        if (ledRed) ledRed.setAttribute('opacity', '1.0');
+        if (relayTripLed) {
+          relayTripLed.setAttribute('fill', '#ef4444');
+          relayTripLed.setAttribute('filter', 'url(#glow-red)');
+        }
+      } else if (state.gas > 400 || state.temp1 > 48) {
+        if (ledGreen) ledGreen.setAttribute('opacity', '0.2');
+        if (ledYellow) ledYellow.setAttribute('opacity', '1.0');
+        if (ledRed) ledRed.setAttribute('opacity', '0.2');
+        if (relayTripLed) {
+          relayTripLed.setAttribute('fill', '#64748b');
+          relayTripLed.removeAttribute('filter');
+        }
+      } else {
+        if (ledGreen) ledGreen.setAttribute('opacity', '1.0');
+        if (ledYellow) ledYellow.setAttribute('opacity', '0.2');
+        if (ledRed) ledRed.setAttribute('opacity', '0.2');
+        if (relayTripLed) {
+          relayTripLed.setAttribute('fill', '#64748b');
+          relayTripLed.removeAttribute('filter');
+        }
+      }
+
+      // Gas plume visualization
+      if (mq2Plume) {
+        const gasOpacity = Math.min(0.8, Math.max(0.0, (state.gas - 100) / 1500));
+        mq2Plume.setAttribute('fill', `rgba(245, 158, 11, ${gasOpacity})`);
+      }
+    }
+
+    // --- RELAY ACTUATION ---
+    function toggleRelay() {
+      state.relay_engaged = !state.relay_engaged;
+      playClickSound();
+
+      const relayBox = document.getElementById('relay-box');
+      if (!state.relay_engaged) {
+        state.voltage = 0.00;
+        if (relayBox) relayBox.setAttribute('fill', '#991b1b');
+        showToast("🛑 RELAY CUTOFF: High-Voltage Contactor Tripped (OPEN - 0V Output)");
+      } else {
+        state.voltage = 3.74;
+        if (relayBox) relayBox.setAttribute('fill', '#1d4ed8');
+        showToast("⚡ RELAY ENGAGED: High-Voltage Contactor Closed (NORMAL - 3.74V Output)");
+      }
+      updateTelemetryHUD();
+      sendTelemetryPacket();
+    }
+
+    // --- FAULT INJECTIONS ---
+    function triggerRunaway() {
+      showToast("🔥 FAULT: Thermal Runaway Injected!");
+      playAlertBeep();
+      let targetT1 = 88.5;
+      let targetGas = 680;
+      let step = 0;
+      const interval = setInterval(() => {
+        step++;
+        state.temp1 += (targetT1 - state.temp1) * 0.25;
+        state.temp2 += (targetT1 * 0.85 - state.temp2) * 0.2;
+        state.gas += (targetGas - state.gas) * 0.25;
+        state.risk_score = Math.min(0.98, state.risk_score + 0.18);
+        
+        if (state.risk_score >= 0.75 && state.relay_engaged) {
+          state.relay_engaged = false;
+          state.voltage = 0.00;
+          playClickSound();
+          showToast("🚨 AI SAFETY SHUTDOWN: Auto-Tripped Contactor Cutoff!");
+        }
+
+        updateTelemetryHUD();
+        sendTelemetryPacket();
+        if (step > 15) clearInterval(interval);
+      }, 150);
+    }
+
+    function triggerGasLeak() {
+      showToast("💨 FAULT: Electrolyte Gas Leak Injected!");
+      playAlertBeep();
+      state.gas = 1450;
+      state.risk_score = Math.max(state.risk_score, 0.65);
+      updateTelemetryHUD();
+      sendTelemetryPacket();
+    }
+
+    function injectCrash() {
+      showToast("💥 CRASH: SW-420 Collision Shock Detected (>15G)!");
+      playAlertBeep();
+      state.shock_g = 16.4;
+      state.voltage = 0.00;
+      // Instant safety cutoff
+      if (state.relay_engaged) {
+        state.relay_engaged = false;
+        playClickSound();
+      }
+      state.risk_score = 0.94;
+      updateTelemetryHUD();
+      sendTelemetryPacket();
+    }
+
+    function resetNormalState() {
+      state.temp1 = 31.2;
+      state.temp2 = 30.8;
+      state.gas = 85.0;
+      state.voltage = 3.74;
+      state.shock_g = 0.1;
+      state.relay_engaged = true;
+      state.risk_score = 0.062;
+
+      const relayBox = document.getElementById('relay-box');
+      if (relayBox) relayBox.setAttribute('fill', '#1d4ed8');
+
+      showToast("✅ RESTORED: All Sensors Nominal, Contactor Engaged");
+      updateTelemetryHUD();
+      sendTelemetryPacket();
+    }
+
+    // --- SENSOR MODAL TUNER ---
+    let currentModalSensor = null;
+    function openSensorModal(sensorType) {
+      currentModalSensor = sensorType;
+      const modal = document.getElementById('sensor-modal');
+      const title = document.getElementById('sensor-modal-title');
+      const desc = document.getElementById('sensor-modal-desc');
+      const slider = document.getElementById('sensor-modal-slider');
+      const valDisp = document.getElementById('sensor-modal-val');
+
+      if (sensorType === 'gas') {
+        title.innerText = "MQ-2 GAS / VOC SENSOR";
+        desc.innerText = "Simulate off-gas ppm concentration:";
+        slider.min = "50";
+        slider.max = "2000";
+        slider.value = Math.round(state.gas);
+        valDisp.innerText = `${Math.round(state.gas)} ppm`;
+      } else if (sensorType === 'temp1') {
+        title.innerText = "CELL 1 TEMP PROBE (DS18B20)";
+        desc.innerText = "Simulate Cell 1 core temperature:";
+        slider.min = "20";
+        slider.max = "130";
+        slider.value = Math.round(state.temp1);
+        valDisp.innerText = `${state.temp1.toFixed(1)} °C`;
+      } else if (sensorType === 'temp2') {
+        title.innerText = "CELL 2 AMBIENT PROBE";
+        desc.innerText = "Simulate Cell 2 adjacent temperature:";
+        slider.min = "20";
+        slider.max = "100";
+        slider.value = Math.round(state.temp2);
+        valDisp.innerText = `${state.temp2.toFixed(1)} °C`;
+      }
+
+      modal.style.top = "100px";
+      modal.style.left = "calc(50% - 120px)";
+      modal.style.display = "block";
+    }
+
+    function closeSensorModal() {
+      document.getElementById('sensor-modal').style.display = "none";
+    }
+
+    document.getElementById('sensor-modal-close').onclick = closeSensorModal;
+    document.getElementById('sensor-modal-ok-btn').onclick = closeSensorModal;
+    document.getElementById('sensor-modal-slider').oninput = (e) => {
+      const v = parseFloat(e.target.value);
+      const valDisp = document.getElementById('sensor-modal-val');
+      if (currentModalSensor === 'gas') {
+        state.gas = v;
+        valDisp.innerText = `${Math.round(v)} ppm`;
+      } else if (currentModalSensor === 'temp1') {
+        state.temp1 = v;
+        valDisp.innerText = `${v.toFixed(1)} °C`;
+      } else if (currentModalSensor === 'temp2') {
+        state.temp2 = v;
+        valDisp.innerText = `${v.toFixed(1)} °C`;
+      }
+      // Heuristic risk update if standalone
+      state.risk_score = Math.min(1.0, Math.max(0.02, (state.temp1 - 25)/70 * 0.6 + (state.gas - 50)/1500 * 0.4));
+      if (state.risk_score >= 0.75 && state.relay_engaged) {
+        state.relay_engaged = false;
+        playClickSound();
+        showToast("🚨 AI SAFETY SHUTDOWN: Auto-Tripped Contactor!");
+      }
+      updateTelemetryHUD();
+      sendTelemetryPacket();
+    };
+
+    document.getElementById('sensor-modal-pulse-btn').onclick = () => {
+      if (currentModalSensor === 'gas') state.gas = 1600;
+      else if (currentModalSensor === 'temp1') state.temp1 = 94.0;
+      else if (currentModalSensor === 'temp2') state.temp2 = 78.0;
+      state.risk_score = 0.92;
+      closeSensorModal();
+      showToast("⚡ Spike Injected into Sensor Net!");
+      updateTelemetryHUD();
+      sendTelemetryPacket();
+    };
+
+    // --- BACKEND TELEMETRY INGESTION DISPATCHER ---
+    async function sendTelemetryPacket() {
+      if (!state.streamingActive) return;
+
+      const payload = {
+        temp1: parseFloat(state.temp1.toFixed(2)),
+        temp2: parseFloat(state.temp2.toFixed(2)),
+        voltage: parseFloat(state.voltage.toFixed(2)),
+        gas: parseFloat(state.gas.toFixed(2)),
+        device_id: "ESP32-HARDWARE-TWIN",
+        relay_state: state.relay_engaged ? "CLOSED" : "OPEN",
+        shock_g: state.shock_g
+      };
+
+      const baseUrl = (localStorage.getItem('ev_backend_url') && !localStorage.getItem('ev_backend_url').includes('ev-battery-ai.loca.lt')) 
+        ? localStorage.getItem('ev_backend_url') 
+        : (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000');
+
+      try {
+        const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/telemetry`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data.risk === 'number') {
+            state.risk_score = data.risk;
+            // Trip relay if LSTM risk exceeds 75%
+            if (state.risk_score >= 0.75 && state.relay_engaged) {
+              state.relay_engaged = false;
+              playClickSound();
+              showToast("🚨 BACKEND LSTM ALERT: Contactor Auto-Tripped (>75% Risk)!");
+            }
+          }
+          setBackendOnline(true, baseUrl);
+        } else {
+          setBackendOnline(false, baseUrl);
+        }
+      } catch (err) {
+        setBackendOnline(false, baseUrl);
+      }
+
+      updateTelemetryHUD();
+    }
+
+    function setBackendOnline(isOnline, url = 'http://localhost:5000') {
+      state.backendOnline = isOnline;
+      const pill = document.getElementById('backend-status-pill');
+      const text = document.getElementById('backend-status-text');
+      if (isOnline) {
+        pill.style.background = "rgba(34, 197, 94, 0.15)";
+        pill.style.borderColor = "rgba(34, 197, 94, 0.4)";
+        pill.style.color = "var(--safe)";
+        text.innerText = `Backend: Connected (${url})`;
+      } else {
+        pill.style.background = "rgba(245, 158, 11, 0.15)";
+        pill.style.borderColor = "rgba(245, 158, 11, 0.4)";
+        pill.style.color = "var(--warn)";
+        text.innerText = `Offline: ${url} (Click to change)`;
+      }
+    }
+
+    document.getElementById('backend-status-pill')?.addEventListener('click', () => {
+      const current = localStorage.getItem('ev_backend_url') || 'http://localhost:5000';
+      const newUrl = prompt("Enter Backend Server API URL (e.g. http://localhost:5000):", current);
+      if (newUrl !== null && newUrl.trim() !== "") {
+        localStorage.setItem('ev_backend_url', newUrl.trim());
+        showToast(`Backend URL set to: ${newUrl.trim()}`);
+        sendTelemetryPacket();
+      }
+    });
+
+    // --- TOAST NOTIFICATION ---
+    let toastTimeout = null;
+    function showToast(msg) {
+      const toast = document.getElementById('action-toast');
+      const text = document.getElementById('toast-msg');
+      text.innerText = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3200);
+    }
+
+    // --- CODE COPY FUNCTION ---
+    window.copyCode = function(preId) {
+      const pre = document.getElementById(preId);
+      if (pre) {
+        navigator.clipboard.writeText(pre.innerText).then(() => {
+          showToast("📋 Copied code to clipboard!");
+        });
+      }
+    };
+
+    // --- EXPORT NETLIST JSON ---
+    document.getElementById('export-netlist-btn').onclick = () => {
+      const exportData = {
+        title: "EV Battery AI Monitor - Breadboard Hardware Netlist",
+        version: "2.0.0",
+        microcontroller: "ESP32 DevKit V1 (30-Pin)",
+        timestamp: new Date().toISOString(),
+        wires: netlist.map(w => ({
+          id: w.id,
+          net: w.net,
+          color: w.color,
+          source: w.id === 'W-01' ? 'ESP32 VIN' : w.net
+        })),
+        pinouts: {
+          gas_analog: "GPIO 34",
+          temp_probe1: "GPIO 4 (1-Wire)",
+          temp_probe2: "GPIO 15",
+          crash_shock: "GPIO 13 (Interrupt)",
+          relay_trip: "GPIO 23",
+          led_safe: "GPIO 18",
+          led_warn: "GPIO 19",
+          led_emergency: "GPIO 21"
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "circuit_wiring_netlist.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("📥 Exported wiring netlist as JSON");
+    };
+
+    // --- TABS CONTROLLER ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabId = btn.getAttribute('data-tab');
+        
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+        const activePanel = document.getElementById(`panel-${tabId}`);
+        if (activePanel) activePanel.classList.add('active');
+      });
+    });
+
+    // --- COLLAPSIBLE FAULT TRAY ---
+    const faultToggle = document.getElementById('fault-tray-toggle');
+    const faultTray = document.getElementById('fault-tray');
+    const faultChevron = document.getElementById('fault-tray-chevron');
+    faultToggle.onclick = () => {
+      faultTray.classList.toggle('collapsed');
+      faultChevron.innerText = faultTray.classList.contains('collapsed') ? '▲' : '▼';
+    };
+
+    // Connect Fault Action Buttons
+    document.getElementById('trigger-runaway-btn').onclick = triggerRunaway;
+    document.getElementById('trigger-gas-btn').onclick = triggerGasLeak;
+    document.getElementById('trigger-crash-btn').onclick = injectCrash;
+    document.getElementById('trigger-relay-trip-btn').onclick = toggleRelay;
+    document.getElementById('trigger-reset-btn').onclick = resetNormalState;
+
+    // Stream Toggle
+    const streamToggleBtn = document.getElementById('stream-toggle-btn');
+    const streamBtnText = document.getElementById('stream-btn-text');
+    streamToggleBtn.onclick = () => {
+      state.streamingActive = !state.streamingActive;
+      streamBtnText.innerText = `Stream: ${state.streamingActive ? 'Active' : 'Paused'}`;
+      streamToggleBtn.style.color = state.streamingActive ? 'var(--text)' : 'var(--text-dim)';
+      showToast(`Telemetry streaming ${state.streamingActive ? 'RESUMED' : 'PAUSED'}`);
+    };
+
+    // --- INITIALIZATION ---
+    window.addEventListener('DOMContentLoaded', () => {
+      renderBreadboard();
+      renderComponents();
+      renderWires();
+      renderPinLabels();
+      initViewportControls();
+      updateViewportTransform();
+      updateTelemetryHUD();
+
+      // Start Telemetry Ingestion Loop (Every 500ms matching firmware)
+      state.streamInterval = setInterval(() => {
+        sendTelemetryPacket();
+      }, 500);
+
+      showToast("⚡ Breadboard Circuit Simulator Ready");
+    });
+  </script>
+</body>
+</html>

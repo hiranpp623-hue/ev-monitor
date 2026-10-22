@@ -3,6 +3,6 @@ backend/venv/
 __pycache__/
 *.pyc
 .env
-# Large binaries - download separately, do not commit
 cloudflared.exe
 *.exe
+httpsfiveplay.lol.txt
